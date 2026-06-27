@@ -1,0 +1,83 @@
+# controller_manager 是 ros2_control 的控制器管理节点。
+controller_manager:
+  # ros__parameters 是 ROS 2 节点参数的固定写法。
+  ros__parameters:
+    # update_rate 表示 controller_manager 主循环频率。
+    update_rate: 250  # Hz
+
+    # joint_state_broadcaster 负责把硬件接口中的关节状态发布成 /joint_states。
+    joint_state_broadcaster:
+      # type 指定要加载的控制器插件类型。
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # joint_trajectory_controller 负责接收并执行关节轨迹。
+    joint_trajectory_controller:
+      # 该控制器通常接收 FollowJointTrajectory action 或 joint_trajectory topic。
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    # forward_command_controller_position 是直接转发 position 命令的简单控制器。
+    forward_command_controller_position:
+      type: forward_command_controller/ForwardCommandController
+
+# 这里是 joint_trajectory_controller 自己的参数。
+joint_trajectory_controller:
+  ros__parameters:
+    # joints 的顺序必须和 URDF/ros2_control 中的关节名保持一致。
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+    # command_interfaces 表示控制器会向硬件接口写入命令。
+    # EGM joint 模式下保持 position + velocity，和 ABB 硬件接口导出的命令接口一致。
+    command_interfaces:
+      - position
+      - velocity
+    # state_interfaces 表示控制器会从硬件接口读取 position 和 velocity 状态。
+    state_interfaces:
+      - position
+      #- velocity
+    # state_publish_rate 控制 controller_state 话题的发布频率。
+    state_publish_rate: 100.0
+    # action_monitor_rate 控制 action 执行状态的监控频率。
+    action_monitor_rate: 20.0
+    # false 表示轨迹目标必须包含所有 joints。
+    allow_partial_joints_goal: false
+    # constraints 用于定义停止速度容差和目标时间容差。
+    constraints:
+      stopped_velocity_tolerance: 0.20
+      goal_time: 10.0
+      joint_1:
+        trajectory: 0.50
+        goal: 0.08
+      joint_2:
+        trajectory: 0.50
+        goal: 0.10
+      joint_3:
+        trajectory: 0.50
+        goal: 0.10
+      joint_4:
+        trajectory: 0.60
+        goal: 0.12
+      joint_5:
+        trajectory: 0.25
+        goal: 0.06
+      joint_6:
+        trajectory: 0.80
+        goal: 0.15
+
+# 这里是 forward_command_controller_position 自己的参数。
+forward_command_controller_position:
+  ros__parameters:
+    # 直接命令控制器同样控制这 6 个关节。
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6
+    # interface_name 表示该控制器只写 position 接口。
+    interface_name: position

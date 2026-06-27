@@ -1,0 +1,787 @@
+#include <rclcpp/rclcpp.hpp>
+
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/robot_state/robot_state.h>
+
+#include <geometry_msgs/msg/pose.hpp>
+#include <array>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2/LinearMath/Vector3.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <map>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
+
+struct JointSafetyLimit
+{
+  double lower;
+  double upper;
+  double max_velocity;
+};
+
+static const std::map<std::string, JointSafetyLimit> kSafeLimits = {
+  {"joint_1", {-3.041,  3.041, 3.054}},
+  {"joint_2", {-1.470,  2.517, 3.054}},
+  {"joint_3", {-3.041,  1.209, 3.054}},
+  {"joint_4", {-6.881,  6.881, 4.363}},
+  {"joint_5", {-2.081,  1.994, 4.363}},
+  {"joint_6", {-6.881,  6.881, 6.283}},
+};
+
+template<typename T>
+T getParam(
+  const rclcpp::Node::SharedPtr & node,
+  const std::string & name,
+  const T & default_value)
+{
+  if (!node->has_parameter(name)) {
+    node->declare_parameter<T>(name, default_value);
+  }
+  return node->get_parameter(name).get_value<T>();
+}
+
+double durationToSec(const builtin_interfaces::msg::Duration & duration)
+{
+  return static_cast<double>(duration.sec) +
+         static_cast<double>(duration.nanosec) * 1e-9;
+}
+
+bool validateTrajectory(
+  const trajectory_msgs::msg::JointTrajectory & trajectory,
+  const double wrist_singularity_threshold,
+  const double max_joint_jump,
+  std::string & error_message)
+{
+  if (trajectory.joint_names.empty()) {
+    error_message = "trajectory.joint_names is empty.";
+    return false;
+  }
+
+  if (trajectory.points.empty()) {
+    error_message = "trajectory has no points.";
+    return false;
+  }
+
+  std::map<std::string, size_t> joint_index;
+  for (size_t i = 0; i < trajectory.joint_names.size(); ++i) {
+    joint_index[trajectory.joint_names[i]] = i;
+  }
+
+  for (const auto & item : kSafeLimits) {
+    if (joint_index.find(item.first) == joint_index.end()) {
+      std::ostringstream oss;
+      oss << "missing joint: " << item.first;
+      error_message = oss.str();
+      return false;
+    }
+  }
+
+  for (size_t p = 0; p < trajectory.points.size(); ++p) {
+    const auto & point = trajectory.points[p];
+
+    if (point.positions.size() != trajectory.joint_names.size()) {
+      std::ostringstream oss;
+      oss << "point " << p << " positions size mismatch.";
+      error_message = oss.str();
+      return false;
+    }
+
+    for (const auto & item : kSafeLimits) {
+      const std::string & joint_name = item.first;
+      const auto & limit = item.second;
+      const size_t idx = joint_index[joint_name];
+      const double q = point.positions[idx];
+
+      if (q < limit.lower || q > limit.upper) {
+        std::ostringstream oss;
+        oss << "point " << p << ": " << joint_name
+            << " = " << q
+            << " outside safe range ["
+            << limit.lower << ", " << limit.upper << "] rad.";
+        error_message = oss.str();
+        return false;
+      }
+
+      if (joint_name == "joint_5" && std::abs(q) < wrist_singularity_threshold) {
+        std::ostringstream oss;
+        oss << "point " << p
+            << ": joint_5 = " << q
+            << " rad too close to wrist singularity. "
+            << "threshold = " << wrist_singularity_threshold;
+        error_message = oss.str();
+        return false;
+      }
+    }
+
+    if (p > 0) {
+      const auto & prev = trajectory.points[p - 1];
+
+      const double t_prev = durationToSec(prev.time_from_start);
+      const double t_curr = durationToSec(point.time_from_start);
+      const double dt = t_curr - t_prev;
+
+      if (dt <= 0.0) {
+        std::ostringstream oss;
+        oss << "non-positive dt at segment " << p - 1 << " -> " << p;
+        error_message = oss.str();
+        return false;
+      }
+
+      for (const auto & item : kSafeLimits) {
+        const std::string & joint_name = item.first;
+        const auto & limit = item.second;
+        const size_t idx = joint_index[joint_name];
+
+        const double q_prev = prev.positions[idx];
+        const double q_curr = point.positions[idx];
+        const double dq = std::abs(q_curr - q_prev);
+        const double velocity = dq / dt;
+
+        if (dq > max_joint_jump) {
+          std::ostringstream oss;
+          oss << "segment " << p - 1 << " -> " << p
+              << ": " << joint_name
+              << " jump = " << dq
+              << " rad > max_joint_jump = " << max_joint_jump;
+          error_message = oss.str();
+          return false;
+        }
+
+        if (velocity > limit.max_velocity) {
+          std::ostringstream oss;
+          oss << "segment " << p - 1 << " -> " << p
+              << ": " << joint_name
+              << " velocity = " << velocity
+              << " rad/s > max_velocity = " << limit.max_velocity;
+          error_message = oss.str();
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
+struct RapidTarget
+{
+  std::string name;
+  std::array<double, 3> position_mm;
+  std::array<double, 4> rapid_quaternion;
+};
+
+geometry_msgs::msg::Pose toTool0Pose(const RapidTarget & target)
+{
+  tf2::Quaternion tcp_orientation(
+    target.rapid_quaternion[1],
+    target.rapid_quaternion[2],
+    target.rapid_quaternion[3],
+    target.rapid_quaternion[0]);
+  tcp_orientation.normalize();
+
+  const tf2::Vector3 tcp_position(
+    target.position_mm[0] / 1000.0,
+    target.position_mm[1] / 1000.0,
+    target.position_mm[2] / 1000.0);
+
+  const tf2::Transform base_to_tcp(tcp_orientation, tcp_position);
+
+  // 当前项目里的 GZ 工具：tool0 -> TCP 偏移。
+  const tf2::Transform tool0_to_gz_tcp(
+    tf2::Quaternion::getIdentity(),
+    tf2::Vector3(-0.075, 0.0, 0.216));
+
+  const tf2::Transform base_to_tool0 = base_to_tcp * tool0_to_gz_tcp.inverse();
+
+  geometry_msgs::msg::Pose pose;
+  pose.position.x = base_to_tool0.getOrigin().x();
+  pose.position.y = base_to_tool0.getOrigin().y();
+  pose.position.z = base_to_tool0.getOrigin().z();
+  pose.orientation = tf2::toMsg(base_to_tool0.getRotation());
+  return pose;
+}
+
+std::vector<RapidTarget> makePath10Targets()
+{
+  return {
+    {"Target_210", {245.832758885, -1339.12895635, 777.464240183},
+      {0.478400558, -0.521495507, 0.506705506, -0.492366604}},
+    {"Target_30", {1619.584450471, -378.494495066, 655.666637316},
+      {0.49193704, -0.507171975, 0.521041538, -0.478842618}},
+    {"Target_40", {1619.584424127, 85.971895363, 655.66656862},
+      {0.49193703, -0.507171938, 0.521041646, -0.478842549}},
+    {"Target_50", {1621.091434395, 80.467737853, 681.868711263},
+      {0.569617259, -0.405851496, 0.603317837, -0.383181849}},
+    {"Target_60", {1542.091373439, 84.999617909, 658.660023036},
+      {0.569617231, -0.405851529, 0.60331785, -0.383181835}},
+    {"Target_70", {1540.6423709, 98.101948859, 633.454361049},
+      {0.495114067, -0.503691567, 0.524407042, -0.475556642}},
+    {"Target_80", {1555.131448251, 98.101972671, 815.902147503},
+      {0.495113696, -0.503691987, 0.524406627, -0.475557042}},
+    {"Target_90", {1555.131420108, 98.101992456, 893.488734831},
+      {0.495113721, -0.503691945, 0.524406672, -0.475557011}},
+    {"Target_100", {1543.836348907, 96.610449733, 893.488864478},
+      {0.495113724, -0.503691952, 0.524406637, -0.475557039}},
+    {"Target_110", {1542.309350856, 92.33936431, 900.547870765},
+      {0.402000238, -0.589419901, 0.425784129, -0.556496059}},
+    {"Target_120", {1542.309355626, 41.795477908, 911.806915943},
+      {0.401999776, -0.58942009, 0.425783845, -0.556496411}},
+    {"Target_130", {1542.309406172, 14.649335824, 936.758778901},
+      {0.40199986, -0.589420025, 0.425783937, -0.556496349}},
+    {"Target_140", {1542.309394052, -50.086859014, 991.490022432},
+      {0.401999863, -0.589420062, 0.425783863, -0.556496364}},
+    {"Target_150", {1542.309389906, -125.338150744, 1030.917991469},
+      {0.4019997, -0.58942013, 0.425783821, -0.556496441}},
+    {"Target_160", {1543.538547361, -121.570669946, 1052.290846321},
+      {0.478400645, -0.521496192, 0.506704746, -0.492366575}},
+    {"Target_170", {1543.538324064, -119.123263464, 1125.30806886},
+      {0.478400532, -0.521496219, 0.50670467, -0.492366734}},
+    {"Target_180", {1543.538325459, -250.366397395, 1145.547068237},
+      {0.478400608, -0.521496077, 0.506704704, -0.492366777}},
+    {"Target_190", {1543.538314403, -444.694603495, 1144.412018467},
+      {0.478400753, -0.521495973, 0.50670489, -0.492366554}},
+    {"Target_200", {1266.543390848, -444.69461636, 742.986355055},
+      {0.478400777, -0.521495921, 0.506704892, -0.492366584}},
+    {"Target_210", {245.832758885, -1339.12895635, 777.464240183},
+      {0.478400558, -0.521495507, 0.506705506, -0.492366604}},
+  };
+}
+
+std::vector<geometry_msgs::msg::Pose> makeFullPath10Waypoints()
+{
+  const auto targets = makePath10Targets();
+
+  std::vector<geometry_msgs::msg::Pose> waypoints;
+  waypoints.reserve(targets.size());
+
+  for (const auto & target : targets) {
+    waypoints.push_back(toTool0Pose(target));
+  }
+
+  return waypoints;
+}
+
+std::vector<geometry_msgs::msg::Pose> makeSparseWaypoints(
+  const std::vector<geometry_msgs::msg::Pose> & full_waypoints,
+  const int keep_every)
+{
+  std::vector<geometry_msgs::msg::Pose> sparse;
+
+  if (full_waypoints.empty()) {
+    return sparse;
+  }
+
+  const int safe_keep_every = std::max(1, keep_every);
+
+  for (size_t i = 0; i < full_waypoints.size(); ++i) {
+    bool keep = false;
+
+    // 正常稀疏保留规则
+    if (i == 0 || i == full_waypoints.size() - 1 ||
+        static_cast<int>(i) % safe_keep_every == 0) {
+      keep = true;
+    }
+
+    // 根据实验结果强制恢复奇异风险段的中间点：
+    // segment 1: 0 -> 4 之间恢复 1,2,3
+    // segment 4: 12 -> 16 之间恢复 13,14,15
+    if (i == 1 || i == 2 || i == 3 ||
+        i == 13 || i == 14 || i == 15) {
+      keep = true;
+    }
+
+    if (keep) {
+      sparse.push_back(full_waypoints[i]);
+    }
+  }
+
+  return sparse;
+}
+
+void writeSegmentReport(
+  std::ofstream & file,
+  const size_t segment_index,
+  const bool plan_success,
+  const bool guard_success,
+  const std::string & message,
+  const trajectory_msgs::msg::JointTrajectory & trajectory)
+{
+  file << "segment," << segment_index
+       << ",plan_success," << plan_success
+       << ",guard_success," << guard_success
+       << ",message," << message << "\n";
+
+  if (!trajectory.points.empty()) {
+    const auto & last = trajectory.points.back();
+    file << "segment," << segment_index << ",final_joint_positions";
+    for (size_t i = 0; i < trajectory.joint_names.size(); ++i) {
+      file << "," << trajectory.joint_names[i] << "," << last.positions[i];
+    }
+    file << "\n";
+  }
+}
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+
+  auto node = std::make_shared<rclcpp::Node>(
+    "path10_sparse_ompl_planner",
+    rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true));
+
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
+
+  std::thread spinner([&executor]() {
+    executor.spin();
+  });
+
+  const std::string planning_group =
+    getParam<std::string>(node, "planning_group", "manipulator");
+
+  std::string eef_link =
+    getParam<std::string>(node, "eef_link", "tool0");
+
+  const bool execute =
+    getParam<bool>(node, "execute", false);
+
+  const bool return_to_start =
+    getParam<bool>(node, "return_to_start", true);
+
+  const int keep_every =
+    getParam<int>(node, "keep_every", 4);
+
+  const double velocity_scale =
+    getParam<double>(node, "velocity_scale", 0.05);
+
+  const double acceleration_scale =
+    getParam<double>(node, "acceleration_scale", 0.05);
+
+  const double planning_time =
+    getParam<double>(node, "planning_time", 60.0);
+
+  const int planning_attempts =
+    getParam<int>(node, "planning_attempts", 10);
+
+  const double wrist_singularity_threshold =
+    getParam<double>(node, "wrist_singularity_threshold", 0.15);
+
+  const double max_joint_jump =
+    getParam<double>(node, "max_joint_jump", 0.50);
+
+  const std::string report_path =
+    getParam<std::string>(node, "report_path", "/tmp/path10_sparse_ompl_report.csv");
+
+  RCLCPP_INFO(node->get_logger(), "Creating MoveGroupInterface...");
+  moveit::planning_interface::MoveGroupInterface move_group(node, planning_group);
+
+  if (eef_link.empty()) {
+    eef_link = move_group.getEndEffectorLink();
+  }
+
+  move_group.setMaxVelocityScalingFactor(velocity_scale);
+  move_group.setMaxAccelerationScalingFactor(acceleration_scale);
+  move_group.setPlanningTime(planning_time);
+  move_group.setNumPlanningAttempts(planning_attempts);
+
+  RCLCPP_INFO(node->get_logger(), "Planning group: %s", planning_group.c_str());
+  RCLCPP_INFO(node->get_logger(), "EEF link: %s", eef_link.c_str());
+  RCLCPP_INFO(node->get_logger(), "keep_every: %d", keep_every);
+  RCLCPP_INFO(node->get_logger(), "execute: %s", execute ? "true" : "false");
+
+  std::ofstream report(report_path);
+  if (!report.is_open()) {
+    RCLCPP_ERROR(node->get_logger(), "Failed to open report: %s", report_path.c_str());
+    executor.cancel();
+    if (spinner.joinable()) {
+      spinner.join();
+    }
+    rclcpp::shutdown();
+    return 1;
+  }
+
+  report << std::fixed << std::setprecision(6);
+  report << "path10_sparse_ompl_report\n";
+  report << "keep_every," << keep_every << "\n";
+  report << "execute," << execute << "\n";
+
+  const std::vector<geometry_msgs::msg::Pose> full_waypoints = makeFullPath10Waypoints();
+
+  if (full_waypoints.size() < 2) {
+    RCLCPP_ERROR(
+      node->get_logger(),
+      "Path10 waypoints are empty. You must copy Path10 pose waypoints into makeFullPath10Waypoints().");
+
+    report << "error,Path10 waypoints are empty\n";
+
+    executor.cancel();
+    if (spinner.joinable()) {
+      spinner.join();
+    }
+    rclcpp::shutdown();
+    return 2;
+  }
+
+  const std::vector<geometry_msgs::msg::Pose> sparse_waypoints =
+    makeSparseWaypoints(full_waypoints, keep_every);
+
+  RCLCPP_INFO(
+    node->get_logger(),
+    "Full waypoints: %zu, sparse waypoints: %zu",
+    full_waypoints.size(),
+    sparse_waypoints.size());
+
+  report << "full_waypoints," << full_waypoints.size() << "\n";
+  report << "sparse_waypoints," << sparse_waypoints.size() << "\n";
+
+  // 正确 Target_210 六轴构型
+  const std::map<std::string, double> target_210_joint_target = {
+    {"joint_1", -1.6445413879080628},
+    {"joint_2",  0.46621774082971995},
+    {"joint_3",  0.2512714958911459},
+    {"joint_4",  1.478954819758533},
+    {"joint_5",  1.5885588123173982},
+    {"joint_6", -3.8906218901927923},
+  };
+
+  RCLCPP_INFO(node->get_logger(), "Planning to fixed Target_210 joint posture first...");
+
+  move_group.clearPoseTargets();
+  move_group.setStartStateToCurrentState();
+  move_group.setJointValueTarget(target_210_joint_target);
+
+  moveit::planning_interface::MoveGroupInterface::Plan start_plan;
+  const bool start_plan_success = static_cast<bool>(move_group.plan(start_plan));
+
+  if (!start_plan_success) {
+    RCLCPP_ERROR(node->get_logger(), "Failed to plan to fixed Target_210.");
+    report << "error,failed_to_plan_target_210\n";
+
+    executor.cancel();
+    if (spinner.joinable()) {
+      spinner.join();
+    }
+    rclcpp::shutdown();
+    return 3;
+  }
+
+  std::string guard_error;
+  const bool start_guard_success = validateTrajectory(
+    start_plan.trajectory_.joint_trajectory,
+    wrist_singularity_threshold,
+    max_joint_jump,
+    guard_error);
+
+  if (!start_guard_success) {
+    RCLCPP_ERROR(
+      node->get_logger(),
+      "Target_210 trajectory rejected: %s",
+      guard_error.c_str());
+
+    report << "error,target_210_rejected," << guard_error << "\n";
+
+    executor.cancel();
+    if (spinner.joinable()) {
+      spinner.join();
+    }
+    rclcpp::shutdown();
+    return 4;
+  }
+
+  if (execute) {
+    RCLCPP_WARN(node->get_logger(), "Executing move to Target_210...");
+    const bool exec_ok = static_cast<bool>(move_group.execute(start_plan));
+    if (!exec_ok) {
+      RCLCPP_ERROR(node->get_logger(), "Execution to Target_210 failed.");
+      report << "error,execution_to_target_210_failed\n";
+
+      executor.cancel();
+      if (spinner.joinable()) {
+        spinner.join();
+      }
+      rclcpp::shutdown();
+      return 5;
+    }
+  }
+
+  const moveit::core::JointModelGroup * joint_model_group =
+    move_group.getCurrentState()->getJointModelGroup(planning_group);
+
+  moveit::core::RobotState virtual_start_state(*move_group.getCurrentState());
+  std::vector<double> target210_values;
+  for (const auto & name : move_group.getJointNames()) {
+    auto it = target_210_joint_target.find(name);
+    if (it != target_210_joint_target.end()) {
+      target210_values.push_back(it->second);
+    }
+  }
+
+  if (!target210_values.empty()) {
+    virtual_start_state.setJointGroupPositions(joint_model_group, target210_values);
+  }
+
+  // sparse_waypoints[0] 理论上是 Target_210 的 Pose。
+  // 已经先用固定关节角到 Target_210，所以从 sparse_waypoints[1] 开始规划。
+  for (size_t i = 1; i < sparse_waypoints.size(); ++i) {
+    RCLCPP_INFO(
+      node->get_logger(),
+      "Planning sparse segment %zu / %zu using setPoseTarget...",
+      i,
+      sparse_waypoints.size() - 1);
+
+    move_group.clearPoseTargets();
+
+    if (execute) {
+      move_group.setStartStateToCurrentState();
+    } else {
+      move_group.setStartState(virtual_start_state);
+    }
+
+    move_group.setPoseTarget(sparse_waypoints[i], eef_link);
+
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    const bool plan_success = static_cast<bool>(move_group.plan(plan));
+
+    if (!plan_success) {
+      std::ostringstream oss;
+      oss << "segment " << i << " MoveIt2 planning failed.";
+      RCLCPP_ERROR(node->get_logger(), "%s", oss.str().c_str());
+      writeSegmentReport(report, i, false, false, oss.str(), plan.trajectory_.joint_trajectory);
+
+      executor.cancel();
+      if (spinner.joinable()) {
+        spinner.join();
+      }
+      rclcpp::shutdown();
+      return 10;
+    }
+
+    std::string segment_guard_error;
+    const bool guard_success = validateTrajectory(
+      plan.trajectory_.joint_trajectory,
+      wrist_singularity_threshold,
+      max_joint_jump,
+      segment_guard_error);
+
+    if (!guard_success) {
+      std::ostringstream oss;
+      oss << "segment " << i << " rejected by guard: " << segment_guard_error;
+
+      RCLCPP_ERROR(node->get_logger(), "%s", oss.str().c_str());
+      writeSegmentReport(
+        report,
+        i,
+        true,
+        false,
+        oss.str(),
+        plan.trajectory_.joint_trajectory);
+
+      // 验证模式下不退出，继续分析后续 segment。
+      // 注意：如果 execute=true，绝对不能继续执行危险轨迹。
+      if (execute) {
+        executor.cancel();
+        if (spinner.joinable()) {
+          spinner.join();
+        }
+        rclcpp::shutdown();
+        return 11;
+      }
+
+      const auto & joint_traj = plan.trajectory_.joint_trajectory;
+
+      if (joint_traj.points.empty()) {
+        RCLCPP_ERROR(
+          node->get_logger(),
+          "Cannot update virtual state after rejected segment: trajectory has no points.");
+
+        executor.cancel();
+        if (spinner.joinable()) {
+          spinner.join();
+        }
+        rclcpp::shutdown();
+        return 13;
+      }
+
+      const auto & last_point = joint_traj.points.back();
+
+      std::vector<double> last_group_positions;
+      for (const auto & joint_name : move_group.getJointNames()) {
+        bool found = false;
+
+        for (size_t j = 0; j < joint_traj.joint_names.size(); ++j) {
+          if (joint_traj.joint_names[j] == joint_name) {
+            last_group_positions.push_back(last_point.positions[j]);
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          RCLCPP_ERROR(
+            node->get_logger(),
+            "Cannot update virtual state after rejected segment, missing joint: %s",
+            joint_name.c_str());
+
+          executor.cancel();
+          if (spinner.joinable()) {
+            spinner.join();
+          }
+          rclcpp::shutdown();
+          return 13;
+        }
+      }
+
+      virtual_start_state.setJointGroupPositions(joint_model_group, last_group_positions);
+      virtual_start_state.update();
+
+      // execute=false 时，仅用于离线验证：
+      // 虽然该段被判定为危险轨迹，但为了继续分析后续稀疏段，
+      // 使用该规划轨迹的末端关节状态作为下一个虚拟起点。
+      continue;
+    }
+
+    RCLCPP_INFO(node->get_logger(), "Segment %zu passed guard.", i);
+    writeSegmentReport(report, i, true, true, "passed", plan.trajectory_.joint_trajectory);
+
+    if (execute) {
+      RCLCPP_WARN(node->get_logger(), "Executing sparse segment %zu...", i);
+      const bool exec_success = static_cast<bool>(move_group.execute(plan));
+
+      if (!exec_success) {
+        std::ostringstream oss;
+        oss << "segment " << i << " execution failed.";
+        RCLCPP_ERROR(node->get_logger(), "%s", oss.str().c_str());
+        report << "error," << oss.str() << "\n";
+
+        executor.cancel();
+        if (spinner.joinable()) {
+          spinner.join();
+        }
+        rclcpp::shutdown();
+        return 12;
+      }
+    } else {
+      const auto & joint_traj = plan.trajectory_.joint_trajectory;
+      const auto & last_point = joint_traj.points.back();
+
+      std::vector<double> last_group_positions;
+      for (const auto & joint_name : move_group.getJointNames()) {
+        bool found = false;
+        for (size_t j = 0; j < joint_traj.joint_names.size(); ++j) {
+          if (joint_traj.joint_names[j] == joint_name) {
+            last_group_positions.push_back(last_point.positions[j]);
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          RCLCPP_ERROR(node->get_logger(), "Cannot update virtual state, missing joint: %s", joint_name.c_str());
+          executor.cancel();
+          if (spinner.joinable()) {
+            spinner.join();
+          }
+          rclcpp::shutdown();
+          return 13;
+        }
+      }
+
+      virtual_start_state.setJointGroupPositions(joint_model_group, last_group_positions);
+      virtual_start_state.update();
+    }
+  }
+
+  if (return_to_start) {
+    RCLCPP_INFO(node->get_logger(), "Planning return to fixed Target_210 joint posture...");
+
+    move_group.clearPoseTargets();
+
+    if (execute) {
+      move_group.setStartStateToCurrentState();
+    } else {
+      move_group.setStartState(virtual_start_state);
+    }
+
+    move_group.setJointValueTarget(target_210_joint_target);
+
+    moveit::planning_interface::MoveGroupInterface::Plan return_plan;
+    const bool return_plan_success = static_cast<bool>(move_group.plan(return_plan));
+
+    if (!return_plan_success) {
+      RCLCPP_ERROR(node->get_logger(), "Failed to plan return to Target_210.");
+      report << "error,failed_to_plan_return_target_210\n";
+
+      executor.cancel();
+      if (spinner.joinable()) {
+        spinner.join();
+      }
+      rclcpp::shutdown();
+      return 20;
+    }
+
+    std::string return_guard_error;
+    const bool return_guard_success = validateTrajectory(
+      return_plan.trajectory_.joint_trajectory,
+      wrist_singularity_threshold,
+      max_joint_jump,
+      return_guard_error);
+
+    if (!return_guard_success) {
+      RCLCPP_ERROR(
+        node->get_logger(),
+        "Return trajectory rejected: %s",
+        return_guard_error.c_str());
+
+      report << "error,return_rejected," << return_guard_error << "\n";
+
+      executor.cancel();
+      if (spinner.joinable()) {
+        spinner.join();
+      }
+      rclcpp::shutdown();
+      return 21;
+    }
+
+    if (execute) {
+      RCLCPP_WARN(node->get_logger(), "Executing return to Target_210...");
+      const bool return_exec_success = static_cast<bool>(move_group.execute(return_plan));
+
+      if (!return_exec_success) {
+        RCLCPP_ERROR(node->get_logger(), "Return execution failed.");
+        report << "error,return_execution_failed\n";
+
+        executor.cancel();
+        if (spinner.joinable()) {
+          spinner.join();
+        }
+        rclcpp::shutdown();
+        return 22;
+      }
+    }
+
+    writeSegmentReport(report, 999, true, true, "return_to_target_210_passed", return_plan.trajectory_.joint_trajectory);
+  }
+
+  RCLCPP_INFO(node->get_logger(), "Path10 sparse OMPL validation finished.");
+  RCLCPP_INFO(node->get_logger(), "Report written to: %s", report_path.c_str());
+
+  report << "result,success\n";
+  report.close();
+
+  executor.cancel();
+  if (spinner.joinable()) {
+    spinner.join();
+  }
+
+  rclcpp::shutdown();
+  return 0;
+}
+

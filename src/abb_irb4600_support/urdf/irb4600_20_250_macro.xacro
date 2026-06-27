@@ -1,0 +1,199 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <!-- abb_irb4600_20_250 宏定义 IRB4600-20/2.50 的 link、joint 和常用坐标系。 -->
+  <xacro:macro name="abb_irb4600_20_250" params="prefix">
+    <!-- 引入 ABB 通用材质定义，下面的 visual 会复用这些颜色。 -->
+    <xacro:include filename="$(find abb_resources)/urdf/common_materials.xacro"/>
+
+    <!-- link 列表 -->
+    <!-- base_link 是机器人底座 link，也是机械臂链条的起点。 -->
+    <link name="${prefix}base_link">
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600/collision/base_link.stl"/>
+        </geometry>
+        <xacro:material_abb_yellow />
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600/visual/base_link.dae"/>
+        </geometry>
+        <xacro:material_abb_graphite_white/>
+      </visual>
+    </link>
+    <!-- link_1 到 link_6 对应 ABB 六轴机械臂的各级刚体。 -->
+    <link name="${prefix}link_1">
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600/collision/link_1.stl"/>
+        </geometry>
+        <xacro:material_abb_yellow />
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600/visual/link_1.dae"/>
+        </geometry>
+        <xacro:material_abb_graphite_white/>
+      </visual>
+    </link>
+    <!-- link_2 是 joint_2 和 joint_3 之间的刚体。 -->
+    <link name="${prefix}link_2">
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/collision/link_2.stl"/>
+        </geometry>
+        <xacro:material_abb_yellow />
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/visual/link_2.dae"/>
+        </geometry>
+        <xacro:material_abb_graphite_white/>
+      </visual>
+    </link>
+    <!-- link_3 是 joint_3 和 joint_4 之间的刚体。 -->
+    <link name="${prefix}link_3">
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/collision/link_3.stl"/>
+        </geometry>
+        <xacro:material_abb_yellow />
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/visual/link_3.dae"/>
+        </geometry>
+        <xacro:material_abb_graphite_white/>
+      </visual>
+    </link>
+    <!-- link_4 是 joint_4 和 joint_5 之间的刚体。 -->
+    <link name="${prefix}link_4">
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/collision/link_4.stl"/>
+        </geometry>
+        <xacro:material_abb_yellow />
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/visual/link_4.dae"/>
+        </geometry>
+        <xacro:material_abb_graphite_white/>
+      </visual>
+    </link>
+    <!-- link_5 是 joint_5 和 joint_6 之间的刚体。 -->
+    <link name="${prefix}link_5">
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/collision/link_5.stl"/>
+        </geometry>
+        <xacro:material_abb_yellow />
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/visual/link_5.dae"/>
+        </geometry>
+        <xacro:material_abb_graphite_white/>
+      </visual>
+    </link>
+    <!-- link_6 是末端法兰前的最后一级刚体。 -->
+    <link name="${prefix}link_6">
+      <collision name="collision">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/collision/link_6.stl"/>
+        </geometry>
+        <xacro:material_abb_yellow />
+      </collision>
+      <visual name="visual">
+        <geometry>
+          <mesh filename="package://abb_irb4600_support/meshes/irb4600_20_250/visual/link_6.dae"/>
+        </geometry>
+        <xacro:material_abb_graphite_white/>
+      </visual>
+    </link>
+    <!-- link 列表结束 -->
+
+    <!-- joint 列表 -->
+    <!-- joint_1 是底座回转轴，绕 Z 轴旋转。 -->
+    <joint type="revolute" name="${prefix}joint_1">
+      <origin xyz="0 0 0.495" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <parent link="${prefix}base_link"/>
+      <child link="${prefix}link_1"/>
+      <limit effort="0" lower="${radians(-180)}" upper="${radians(180)}" velocity="${radians(175)}"/>
+    </joint>
+    <!-- joint_2 是肩部关节，绕 Y 轴旋转。 -->
+    <joint type="revolute" name="${prefix}joint_2">
+      <origin xyz="0.175 0 0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <parent link="${prefix}link_1"/>
+      <child link="${prefix}link_2"/>
+      <limit effort="0" lower="${radians(-90)}" upper="${radians(150)}" velocity="${radians(175)}"/>
+    </joint>
+    <!-- joint_3 是肘部关节，绕 Y 轴旋转。 -->
+    <joint type="revolute" name="${prefix}joint_3">
+      <origin xyz="0 0 1.095" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <parent link="${prefix}link_2"/>
+      <child link="${prefix}link_3"/>
+      <limit effort="0" lower="${radians(-180)}" upper="${radians(75)}" velocity="${radians(175)}"/>
+    </joint>
+    <!-- joint_4 是腕部第一轴，绕 X 轴旋转。 -->
+    <joint type="revolute" name="${prefix}joint_4">
+      <origin xyz="0 0 0.175" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <parent link="${prefix}link_3"/>
+      <child link="${prefix}link_4"/>
+      <limit effort="0" lower="${radians(-400)}" upper="${radians(400)}" velocity="${radians(360)}"/>
+    </joint>
+    <!-- joint_5 是腕部第二轴，绕 Y 轴旋转。 -->
+    <joint type="revolute" name="${prefix}joint_5">
+      <origin xyz="1.2305 0 0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <parent link="${prefix}link_4"/>
+      <child link="${prefix}link_5"/>
+      <limit effort="0" lower="${radians(-125)}" upper="${radians(120)}" velocity="${radians(360)}"/>
+    </joint>
+    <!-- joint_6 是腕部末端旋转轴，绕 X 轴旋转。 -->
+    <joint type="revolute" name="${prefix}joint_6">
+      <origin xyz="0.085 0 0" rpy="0 0 0"/>
+      <axis xyz="1 0 0"/>
+      <parent link="${prefix}link_5"/>
+      <child link="${prefix}link_6"/>
+      <limit effort="0" lower="${radians(-400)}" upper="${radians(400)}" velocity="${radians(500)}"/>
+    </joint>
+    <!-- joint 列表结束 -->
+
+    <!-- ROS-Industrial `base` 坐标系：base_link 到 ABB World 坐标的变换。 -->
+    <!-- base 是 ROS-Industrial 约定的机器人基坐标系。 -->
+    <link name="${prefix}base" />
+    <!-- base_link-base 固定关节把 URDF 底座和 ROS-Industrial base 坐标系连接起来。 -->
+    <joint name="${prefix}base_link-base" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="${prefix}base_link"/>
+      <child link="${prefix}base"/>
+    </joint>
+
+    <!-- ROS-Industrial `flange` 坐标系：末端执行器模型的安装点。 -->
+    <!-- flange 是末端执行器通常挂接的位置。 -->
+    <link name="${prefix}flange"/>
+    <!-- joint_6-flange 固定关节把最后一节 link 连接到法兰坐标系。 -->
+    <joint type="fixed" name="${prefix}joint_6-flange">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="${prefix}link_6"/>
+      <child link="${prefix}flange"/>
+    </joint>
+
+    <!-- ROS-Industrial `tool0` 坐标系：全零位工具坐标系。 -->
+    <!-- tool0 是 ROS-Industrial 约定的默认工具坐标系。 -->
+    <link name="${prefix}tool0" />
+    <!-- link_6-tool0 固定关节定义默认工具坐标系相对于 flange 的姿态。 -->
+    <joint name="${prefix}link_6-tool0" type="fixed">
+      <origin xyz="0 0 0" rpy="0 ${radians(90)} 0" />
+      <parent link="${prefix}flange" />
+      <child link="${prefix}tool0" />
+    </joint>
+
+
+  </xacro:macro>
+</robot>

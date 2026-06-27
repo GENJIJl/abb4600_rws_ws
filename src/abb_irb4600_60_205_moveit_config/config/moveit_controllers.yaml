@@ -1,0 +1,36 @@
+# trajectory_execution 定义 MoveIt 执行轨迹时的时间和误差容忍参数。
+trajectory_execution:
+  # allowed_execution_duration_scaling 会放宽轨迹执行时长。
+  allowed_execution_duration_scaling: 3.0
+  # allowed_goal_duration_margin 会在目标时间外增加额外容忍时间。
+  allowed_goal_duration_margin: 10.0
+  # allowed_start_tolerance 是执行前当前状态与轨迹起点的允许误差。
+  allowed_start_tolerance: 0.5
+  # trajectory_duration_monitoring 表示 MoveIt 会监控轨迹执行时长。
+  trajectory_duration_monitoring: true
+
+# MoveIt 使用 simple controller manager 与 ros2_control 控制器对接。
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+# 这里声明 MoveIt 能使用哪些轨迹控制器。
+moveit_simple_controller_manager:
+  # controller_names 列出可供 MoveIt 调用的控制器名称。
+  controller_names:
+    - joint_trajectory_controller
+
+  # joint_trajectory_controller 必须和 ros2_control YAML 中的控制器同名。
+  joint_trajectory_controller:
+    # action_ns 表示 MoveIt 会调用 /joint_trajectory_controller/follow_joint_trajectory。
+    action_ns: follow_joint_trajectory
+    # type 表示该控制器暴露 FollowJointTrajectory action。
+    type: FollowJointTrajectory
+    # default 表示这是默认轨迹执行控制器。
+    default: true
+    # joints 必须和控制器 YAML、URDF、ros2_control 标签中的关节名一致。
+    joints:
+      - joint_1
+      - joint_2
+      - joint_3
+      - joint_4
+      - joint_5
+      - joint_6

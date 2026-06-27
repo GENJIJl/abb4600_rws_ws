@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- abb_ros2_control 宏负责生成 ros2_control 的 system 硬件描述。 -->
+  <xacro:macro name="abb_ros2_control" params="name prefix use_fake_hardware:=true rws_ip rws_port">
+    <!-- ros2_control 标签会被 controller_manager 从 robot_description 中解析。 -->
+    <ros2_control name="${name}" type="system">
+      <!-- hardware 块定义底层硬件插件和插件参数。 -->
+      <hardware>
+        <!-- ros2_control 仿真 -->
+        <!-- fake hardware 模式下使用 ros2_control 自带的 GenericSystem。 -->
+        <xacro:if value="${use_fake_hardware}">
+          <plugin>mock_components/GenericSystem</plugin>
+          <!-- fake_sensor_commands 控制是否启用假的传感器命令接口。 -->
+          <param name="fake_sensor_commands">false</param>
+          <!-- state_following_offset 表示状态跟随命令时的偏移量。 -->
+          <param name="state_following_offset">0.0</param>
+        </xacro:if>
+        <!-- 真实硬件或 RobotStudio 仿真 -->
+        <!-- 非 fake hardware 模式下使用 ABB 自定义硬件接口。 -->
+        <xacro:unless value="${use_fake_hardware}">
+          <plugin>abb_hardware_interface/ABBSystemHardware</plugin>
+          <!-- rws_port 和 rws_ip 用于连接 RobotStudio 或真实控制器的 RWS。 -->
+          <param name="rws_port">${rws_port}</param>
+          <param name="rws_ip">${rws_ip}</param>
+          <!-- 以下参数仅用于非 MultiMove 场景 -->
+          <!-- egm_port 必须和 RobotStudio 中配置的 Remote port 对应。 -->
+          <param name="egm_port">6511</param>
+          <!-- EGM 刚连接后的保持时间。该时间内硬件接口持续回发当前关节位置，避免默认命令把机器人拉到零位。 -->
+          <param name="initial_hold_duration_sec">3.0</param>
+          <!-- 以下参数仅用于 MultiMove 示例 -->
+          <!-- <param name="rob1egm_port">6511</param> -->
+          <!-- <param name="extaxegm_port">6512</param> -->
+        </xacro:unless>
+      </hardware>
+      <!-- joint_1 的接口名必须和 URDF 关节名、控制器 YAML 保持一致。 -->
+      <joint name="${prefix}joint_1">
+        <!-- position 是轨迹控制器会写入的命令接口之一。 -->
+        <command_interface name="position">
+          <param name="min">${-2*pi}</param>
+          <param name="max">${2*pi}</param>
+        </command_interface>
+        <!-- velocity 是轨迹控制器会写入的命令接口之一。 -->
+        <command_interface name="velocity"/>
+        <!-- position 状态接口会被 joint_state_broadcaster 和控制器读取。 -->
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <!-- velocity 状态接口会被 joint_state_broadcaster 和控制器读取。 -->
+        <state_interface name="velocity"/>
+      </joint>
+      <!-- joint_2 使用同样的 position/velocity 命令和状态接口。 -->
+      <joint name="${prefix}joint_2">
+        <command_interface name="position">
+          <param name="min">-1.570</param>
+          <param name="max">2.617</param>
+        </command_interface>
+        <command_interface name="velocity"/>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+      <!-- joint_3 使用同样的接口结构，只是关节限制不同。 -->
+      <joint name="${prefix}joint_3">
+        <command_interface name="position">
+          <param name="min">${-2*pi}</param>
+          <param name="max">1.309</param>
+        </command_interface>
+        <command_interface name="velocity"/>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+      <!-- joint_4 使用同样的接口结构。 -->
+      <joint name="${prefix}joint_4">
+        <command_interface name="position">
+          <param name="min">-6.981</param>
+          <param name="max">6.981</param>
+        </command_interface>
+        <command_interface name="velocity"/>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+      <!-- joint_5 使用同样的接口结构。 -->
+      <joint name="${prefix}joint_5">
+        <command_interface name="position">
+          <param name="min">-2.181</param>
+          <param name="max">2.094</param>
+        </command_interface>
+        <command_interface name="velocity"/>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+      <!-- joint_6 使用同样的接口结构。 -->
+      <joint name="${prefix}joint_6">
+        <command_interface name="position">
+          <param name="min">-6.981</param>
+          <param name="max">6.981</param>
+        </command_interface>
+        <command_interface name="velocity"/>
+        <state_interface name="position">
+          <param name="initial_value">0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+    </ros2_control>
+  </xacro:macro>
+
+</robot>

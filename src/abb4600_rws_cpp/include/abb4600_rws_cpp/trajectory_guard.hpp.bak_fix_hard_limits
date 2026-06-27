@@ -1,0 +1,216 @@
+#pragma once
+
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <rclcpp/rclcpp.hpp>
+#include <moveit_msgs/msg/robot_trajectory.hpp>
+
+namespace abb4600_rws_cpp
+{
+
+struct JointTrajectoryGuardLimit
+{
+  double lower;
+  double upper;
+  double max_segment_velocity;
+};
+
+static const std::map<std::string, JointTrajectoryGuardLimit> kTrajectoryGuardLimits = {
+  {"joint_1", {-3.041,  3.041, 0.50}},
+  {"joint_2", {-1.470,  2.517, 0.50}},
+  {"joint_3", {-3.041,  1.209, 0.60}},
+  {"joint_4", {-6.881,  6.881, 0.50}},
+  {"joint_5", {-2.081,  1.994, 0.50}},
+  {"joint_6", {-6.881,  6.881, 0.50}},
+};
+
+inline double pointTimeSec(const trajectory_msgs::msg::JointTrajectoryPoint & point)
+{
+  return static_cast<double>(point.time_from_start.sec) +
+         static_cast<double>(point.time_from_start.nanosec) * 1e-9;
+}
+
+inline bool findJointIndex(
+  const std::vector<std::string> & joint_names,
+  const std::string & joint_name,
+  size_t & index)
+{
+  const auto it = std::find(joint_names.begin(), joint_names.end(), joint_name);
+  if (it == joint_names.end()) {
+    return false;
+  }
+
+  index = static_cast<size_t>(std::distance(joint_names.begin(), it));
+  return true;
+}
+
+inline bool validateTrajectoryGuard(
+  const moveit_msgs::msg::RobotTrajectory & trajectory,
+  const rclcpp::Logger & logger,
+  std::string & error_message,
+  double safety_margin = 0.10,
+  bool check_segment_velocity = true)
+{
+  const auto & joint_traj = trajectory.joint_trajectory;
+  const auto & joint_names = joint_traj.joint_names;
+  const auto & points = joint_traj.points;
+
+  if (joint_names.empty()) {
+    error_message = "TrajectoryGuard rejected trajectory: joint_names is empty.";
+    RCLCPP_ERROR(logger, "%s", error_message.c_str());
+    return false;
+  }
+
+  if (points.empty()) {
+    error_message = "TrajectoryGuard rejected trajectory: trajectory has no points.";
+    RCLCPP_ERROR(logger, "%s", error_message.c_str());
+    return false;
+  }
+
+  for (const auto & item : kTrajectoryGuardLimits) {
+    size_t joint_index = 0;
+    if (!findJointIndex(joint_names, item.first, joint_index)) {
+      std::ostringstream oss;
+      oss << "TrajectoryGuard rejected trajectory: missing "
+          << item.first << " in trajectory joint_names.";
+      error_message = oss.str();
+      RCLCPP_ERROR(logger, "%s", error_message.c_str());
+      return false;
+    }
+  }
+
+  for (size_t point_index = 0; point_index < points.size(); ++point_index) {
+    const auto & point = points[point_index];
+
+    if (point.positions.size() < joint_names.size()) {
+      std::ostringstream oss;
+      oss << "TrajectoryGuard rejected trajectory: point "
+          << point_index
+          << " positions size is smaller than joint_names size.";
+      error_message = oss.str();
+      RCLCPP_ERROR(logger, "%s", error_message.c_str());
+      return false;
+    }
+
+    for (const auto & item : kTrajectoryGuardLimits) {
+      size_t joint_index = 0;
+      findJointIndex(joint_names, item.first, joint_index);
+
+      const double position = point.positions[joint_index];
+
+      if (!std::isfinite(position)) {
+        std::ostringstream oss;
+        oss << "TrajectoryGuard rejected trajectory: "
+            << item.first
+            << " at point "
+            << point_index
+            << " is NaN or Inf.";
+        error_message = oss.str();
+        RCLCPP_ERROR(logger, "%s", error_message.c_str());
+        return false;
+      }
+
+      const double hard_lower = item.second.lower;
+      const double hard_upper = item.second.upper;
+      const double safe_lower = hard_lower + safety_margin;
+      const double safe_upper = hard_upper - safety_margin;
+
+      if (position < hard_lower || position > hard_upper) {
+        std::ostringstream oss;
+        oss << "TrajectoryGuard rejected trajectory: "
+            << item.first
+            << " at point "
+            << point_index
+            << " = "
+            << position
+            << " rad is outside hard limit ["
+            << hard_lower
+            << ", "
+            << hard_upper
+            << "] rad.";
+        error_message = oss.str();
+        RCLCPP_ERROR(logger, "%s", error_message.c_str());
+        return false;
+      }
+
+      if (position < safe_lower || position > safe_upper) {
+        std::ostringstream oss;
+        oss << "TrajectoryGuard rejected trajectory: "
+            << item.first
+            << " at point "
+            << point_index
+            << " = "
+            << position
+            << " rad is too close to limit. Safe range=["
+            << safe_lower
+            << ", "
+            << safe_upper
+            << "] rad.";
+        error_message = oss.str();
+        RCLCPP_ERROR(logger, "%s", error_message.c_str());
+        return false;
+      }
+    }
+  }
+
+  if (check_segment_velocity && points.size() >= 2) {
+    for (size_t point_index = 1; point_index < points.size(); ++point_index) {
+      const auto & prev = points[point_index - 1];
+      const auto & curr = points[point_index];
+
+      const double dt = pointTimeSec(curr) - pointTimeSec(prev);
+
+      if (dt <= 1e-6) {
+        std::ostringstream oss;
+        oss << "TrajectoryGuard rejected trajectory: non-positive time step at segment "
+            << point_index - 1
+            << " -> "
+            << point_index;
+        error_message = oss.str();
+        RCLCPP_ERROR(logger, "%s", error_message.c_str());
+        return false;
+      }
+
+      for (const auto & item : kTrajectoryGuardLimits) {
+        size_t joint_index = 0;
+        findJointIndex(joint_names, item.first, joint_index);
+
+        const double delta = curr.positions[joint_index] - prev.positions[joint_index];
+        const double segment_velocity = std::abs(delta) / dt;
+
+        if (segment_velocity > item.second.max_segment_velocity) {
+          std::ostringstream oss;
+          oss << "TrajectoryGuard rejected trajectory: "
+              << item.first
+              << " segment velocity too high at segment "
+              << point_index - 1
+              << " -> "
+              << point_index
+              << ". velocity="
+              << segment_velocity
+              << " rad/s, limit="
+              << item.second.max_segment_velocity
+              << " rad/s. Try lowering velocity_scale/acceleration_scale or increasing motion time.";
+          error_message = oss.str();
+          RCLCPP_ERROR(logger, "%s", error_message.c_str());
+          return false;
+        }
+      }
+    }
+  }
+
+  RCLCPP_INFO(
+    logger,
+    "TrajectoryGuard passed: %zu joints, %zu trajectory points.",
+    joint_names.size(),
+    points.size());
+
+  return true;
+}
+
+}  // namespace abb4600_rws_cpp

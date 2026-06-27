@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<robot name="abb_irb4600_20_250" xmlns:xacro="http://ros.org/wiki/xacro">
+  <!-- use_fake_hardware 决定 ros2_control 使用假硬件还是真实 ABB 硬件接口。 -->
+  <xacro:arg name="use_fake_hardware" default="true"/>
+  <!-- 将 launch 传入的 use_fake_hardware 参数保存为 xacro 属性。 -->
+  <xacro:property name="use_fake_hardware" value="$(arg use_fake_hardware)"/>
+  <!-- rws_ip 是 RobotStudio 或真实控制器的 RWS 地址。 -->
+  <xacro:arg name="rws_ip" default="None"/>
+  <!-- 将 rws_ip 保存为 xacro 属性，后面传给 ros2_control 硬件插件。 -->
+  <xacro:property name="rws_ip" value="$(arg rws_ip)"/>
+  <!-- rws_port 是 RWS HTTP 服务端口，默认是 80。 -->
+  <xacro:arg name="rws_port" default="80"/>
+  <!-- 将 rws_port 保存为 xacro 属性，后面传给 ros2_control 硬件插件。 -->
+  <xacro:property name="rws_port" value="$(arg rws_port)"/>
+  <!-- 机器人描述 -->
+  <!-- 引入 IRB4600-20/2.50 的几何、link 和 joint 定义。 -->
+  <xacro:include filename="$(find abb_irb4600_support)/urdf/irb4600_20_250_macro.xacro"/>
+  <!-- 实例化 IRB4600-20/2.50 机器人本体模型。 -->
+  <xacro:abb_irb4600_20_250 prefix=""/>
+
+  <!-- ros2_control -->
+  <!-- 引入 ros2_control 硬件接口和关节接口定义。 -->
+  <xacro:include filename="$(find abb_irb4600_support)/urdf/irb4600.ros2_control.xacro" />
+  <!-- 实例化 ros2_control system，并把 launch 参数传入硬件插件。 -->
+  <xacro:abb_ros2_control
+    name="ABBMultiInterfaceHardware"
+    prefix=""
+    use_fake_hardware="${use_fake_hardware}"
+    rws_ip="${rws_ip}"
+    rws_port="${rws_port}"/>
+</robot>

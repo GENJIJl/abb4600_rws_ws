@@ -1,0 +1,513 @@
+#pragma once
+
+#include <cmath>
+#include <limits>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/robot_state/robot_state.h>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+
+namespace abb4600_rws_cpp
+{
+
+struct JointLimit
+{
+  double lower;
+  double upper;
+};
+
+struct SafeIkResult
+{
+  bool success{false};
+  std::map<std::string, double> joint_target;
+  std::string message;
+  double cost{std::numeric_limits<double>::infinity()};
+};
+
+enum class TrajectoryRiskType
+{
+  SAFE,
+  INTERNAL_SINGULARITY,
+  EXTERNAL_SINGULARITY,
+  JOINT_JUMP,
+  JOINT_WRAP,
+  INVALID
+};
+
+struct TrajectoryRisk
+{
+  TrajectoryRiskType type{TrajectoryRiskType::SAFE};
+  std::string message;
+  size_t point_index{0};
+  std::string joint_name;
+  double value{0.0};
+};
+
+// ABB IRB4600-60/2.05 工程安全范围
+static const std::map<std::string, JointLimit> kAbb4600SafeLimits = {
+  {"joint_1", {-3.041,  3.041}},
+  {"joint_2", {-1.470,  2.517}},
+  {"joint_3", {-3.041,  1.209}},
+  {"joint_4", {-6.881,  6.881}},
+  {"joint_5", {-2.081,  1.994}},
+  {"joint_6", {-6.881,  6.881}},
+};
+
+static constexpr double kInternalSingularityDanger = 0.15;   // joint_5 危险阈值
+static constexpr double kInternalSingularityWarn   = 0.25;   // joint_5 预警阈值
+static constexpr double kExternalBoundaryMargin    = 0.10;   // 外部奇异边界余量
+static constexpr double kMaxJointJump              = 0.50;   // 相邻点最大跳变
+static constexpr double kTwoPi                     = 2.0 * M_PI;
+
+inline double distanceToSafeBoundary(
+  const std::string & joint_name,
+  const double q)
+{
+  auto it = kAbb4600SafeLimits.find(joint_name);
+  if (it == kAbb4600SafeLimits.end()) {
+    return std::numeric_limits<double>::infinity();
+  }
+
+  const double d_lower = q - it->second.lower;
+  const double d_upper = it->second.upper - q;
+  return std::min(d_lower, d_upper);
+}
+
+inline bool insideSafeRange(
+  const std::string & joint_name,
+  const double q)
+{
+  auto it = kAbb4600SafeLimits.find(joint_name);
+  if (it == kAbb4600SafeLimits.end()) {
+    return true;
+  }
+
+  return q >= it->second.lower && q <= it->second.upper;
+}
+
+inline bool isInternalSingularity(
+  const std::map<std::string, double> & q)
+{
+  auto it = q.find("joint_5");
+  if (it == q.end()) {
+    return false;
+  }
+
+  return std::abs(it->second) < kInternalSingularityDanger;
+}
+
+inline bool isNearExternalSingularity(
+  const std::map<std::string, double> & q)
+{
+  for (const auto & item : q) {
+    const auto & name = item.first;
+    const double value = item.second;
+
+    if (!insideSafeRange(name, value)) {
+      return true;
+    }
+
+    if (distanceToSafeBoundary(name, value) < kExternalBoundaryMargin) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+inline double normalizeNear(
+  const double reference,
+  const double value)
+{
+  double v = value;
+  while (v - reference > M_PI) {
+    v -= kTwoPi;
+  }
+  while (v - reference < -M_PI) {
+    v += kTwoPi;
+  }
+  return v;
+}
+
+inline bool hasJointWrapRisk(
+  const std::map<std::string, double> & q_prev,
+  const std::map<std::string, double> & q)
+{
+  for (const std::string joint_name : {"joint_4", "joint_6"}) {
+    auto prev_it = q_prev.find(joint_name);
+    auto curr_it = q.find(joint_name);
+
+    if (prev_it == q_prev.end() || curr_it == q.end()) {
+      continue;
+    }
+
+    const double normalized = normalizeNear(prev_it->second, curr_it->second);
+    const double diff_raw = std::abs(curr_it->second - prev_it->second);
+    const double diff_normalized = std::abs(normalized - prev_it->second);
+
+    // 原始差值很大，但归一化后很小，说明是等价绕圈
+    if (diff_raw > M_PI && diff_normalized < 0.30) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+inline bool hasJointJumpRisk(
+  const std::map<std::string, double> & q_prev,
+  const std::map<std::string, double> & q)
+{
+  for (const auto & item : q) {
+    auto prev_it = q_prev.find(item.first);
+    if (prev_it == q_prev.end()) {
+      continue;
+    }
+
+    if (std::abs(item.second - prev_it->second) > kMaxJointJump) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+inline double safeIkCost(
+  const std::map<std::string, double> & q_prev,
+  const std::map<std::string, double> & q)
+{
+  double cost = 0.0;
+
+  // 1. 构型连续性
+  for (const auto & item : q) {
+    auto prev_it = q_prev.find(item.first);
+    if (prev_it != q_prev.end()) {
+      const double dq = item.second - prev_it->second;
+      cost += 1.0 * dq * dq;
+    }
+  }
+
+  // 2. 内部奇异惩罚：joint_5 越靠近 0，代价越大
+  auto q5_it = q.find("joint_5");
+  if (q5_it != q.end()) {
+    const double q5_abs = std::max(std::abs(q5_it->second), 0.001);
+    cost += 50.0 / q5_abs;
+
+    if (q5_abs < kInternalSingularityWarn) {
+      cost += 1000.0;
+    }
+  }
+
+  // 3. 外部奇异惩罚：越靠近边界，代价越大
+  for (const auto & item : q) {
+    const double d = std::max(distanceToSafeBoundary(item.first, item.second), 0.001);
+    cost += 30.0 / d;
+
+    if (d < kExternalBoundaryMargin) {
+      cost += 1000.0;
+    }
+  }
+
+  // 4. 绕圈惩罚
+  if (hasJointWrapRisk(q_prev, q)) {
+    cost += 5000.0;
+  }
+
+  // 5. 跳变惩罚
+  if (hasJointJumpRisk(q_prev, q)) {
+    cost += 5000.0;
+  }
+
+  return cost;
+}
+
+inline std::map<std::string, double> vectorToJointMap(
+  const std::vector<std::string> & joint_names,
+  const std::vector<double> & values)
+{
+  std::map<std::string, double> q;
+
+  const size_t n = std::min(joint_names.size(), values.size());
+  for (size_t i = 0; i < n; ++i) {
+    q[joint_names[i]] = values[i];
+  }
+
+  return q;
+}
+
+inline std::map<std::string, double> getCurrentJointMap(
+  moveit::planning_interface::MoveGroupInterface & move_group)
+{
+  const auto names = move_group.getJointNames();
+  const auto values = move_group.getCurrentJointValues();
+  return vectorToJointMap(names, values);
+}
+
+inline bool rejectUnsafeIk(
+  const std::map<std::string, double> & q,
+  std::string & reason)
+{
+  for (const auto & item : q) {
+    if (!insideSafeRange(item.first, item.second)) {
+      std::ostringstream oss;
+      oss << item.first << " = " << item.second
+          << " outside safe range.";
+      reason = oss.str();
+      return true;
+    }
+  }
+
+  auto q5_it = q.find("joint_5");
+  if (q5_it != q.end() && std::abs(q5_it->second) < kInternalSingularityDanger) {
+    std::ostringstream oss;
+    oss << "joint_5 = " << q5_it->second
+        << " too close to wrist singularity.";
+    reason = oss.str();
+    return true;
+  }
+
+  return false;
+}
+
+// 多 seed IK 筛选：核心函数
+inline SafeIkResult solveSafeIkForPose(
+  moveit::planning_interface::MoveGroupInterface & move_group,
+  const geometry_msgs::msg::Pose & target_pose,
+  const std::map<std::string, double> & q_prev,
+  const std::string & eef_link,
+  const double ik_timeout = 0.10)
+{
+  SafeIkResult best;
+
+  auto current_state = move_group.getCurrentState(2.0);
+  if (!current_state) {
+    best.message = "Failed to get current robot state.";
+    return best;
+  }
+
+  const auto * jmg = current_state->getJointModelGroup(move_group.getName());
+  if (!jmg) {
+    best.message = "Failed to get JointModelGroup.";
+    return best;
+  }
+
+  const std::vector<std::string> joint_names = jmg->getVariableNames();
+
+  std::vector<double> q_seed;
+  current_state->copyJointGroupPositions(jmg, q_seed);
+
+  // 构造多组 seed：当前值 + 小扰动
+  std::vector<std::vector<double>> seeds;
+  seeds.push_back(q_seed);
+
+  for (size_t i = 0; i < q_seed.size(); ++i) {
+    auto plus = q_seed;
+    plus[i] += 0.20;
+    seeds.push_back(plus);
+
+    auto minus = q_seed;
+    minus[i] -= 0.20;
+    seeds.push_back(minus);
+  }
+
+  // 特别给 wrist 关节增加不同 seed，避免 joint_5 穿过 0
+  for (double q5_seed : {0.35, -0.35, 0.60, -0.60, 1.0, -1.0}) {
+    auto seed = q_seed;
+    for (size_t i = 0; i < joint_names.size(); ++i) {
+      if (joint_names[i] == "joint_5") {
+        seed[i] = q5_seed;
+      }
+    }
+    seeds.push_back(seed);
+  }
+
+  int valid_count = 0;
+
+  for (const auto & seed : seeds) {
+    moveit::core::RobotState state(*current_state);
+    state.setJointGroupPositions(jmg, seed);
+    state.update();
+
+    const bool ik_ok = state.setFromIK(jmg, target_pose, eef_link, ik_timeout);
+    if (!ik_ok) {
+      continue;
+    }
+
+    std::vector<double> q_values;
+    state.copyJointGroupPositions(jmg, q_values);
+
+    auto q_map = vectorToJointMap(joint_names, q_values);
+
+    std::string reject_reason;
+    if (rejectUnsafeIk(q_map, reject_reason)) {
+      continue;
+    }
+
+    if (hasJointWrapRisk(q_prev, q_map)) {
+      continue;
+    }
+
+    if (hasJointJumpRisk(q_prev, q_map)) {
+      continue;
+    }
+
+    const double cost = safeIkCost(q_prev, q_map);
+    valid_count++;
+
+    if (cost < best.cost) {
+      best.success = true;
+      best.cost = cost;
+      best.joint_target = q_map;
+      best.message = "Safe IK found.";
+    }
+  }
+
+  if (!best.success) {
+    std::ostringstream oss;
+    oss << "No safe IK found. valid_count=" << valid_count;
+    best.message = oss.str();
+  }
+
+  return best;
+}
+
+inline TrajectoryRisk analyzeTrajectoryRisk(
+  const trajectory_msgs::msg::JointTrajectory & traj)
+{
+  TrajectoryRisk risk;
+
+  if (traj.joint_names.empty()) {
+    risk.type = TrajectoryRiskType::INVALID;
+    risk.message = "trajectory joint_names is empty.";
+    return risk;
+  }
+
+  if (traj.points.empty()) {
+    risk.type = TrajectoryRiskType::INVALID;
+    risk.message = "trajectory points is empty.";
+    return risk;
+  }
+
+  std::map<std::string, size_t> index;
+  for (size_t i = 0; i < traj.joint_names.size(); ++i) {
+    index[traj.joint_names[i]] = i;
+  }
+
+  for (size_t p = 0; p < traj.points.size(); ++p) {
+    const auto & point = traj.points[p];
+
+    for (const auto & item : kAbb4600SafeLimits) {
+      const auto idx_it = index.find(item.first);
+      if (idx_it == index.end()) {
+        continue;
+      }
+
+      const double q = point.positions[idx_it->second];
+
+      if (!insideSafeRange(item.first, q)) {
+        std::ostringstream oss;
+        oss << "external singularity: point " << p
+            << ", " << item.first << " = " << q
+            << " outside safe range.";
+        risk.type = TrajectoryRiskType::EXTERNAL_SINGULARITY;
+        risk.message = oss.str();
+        risk.point_index = p;
+        risk.joint_name = item.first;
+        risk.value = q;
+        return risk;
+      }
+
+      if (distanceToSafeBoundary(item.first, q) < kExternalBoundaryMargin) {
+        std::ostringstream oss;
+        oss << "external singularity warning: point " << p
+            << ", " << item.first << " = " << q
+            << " near safe boundary.";
+        risk.type = TrajectoryRiskType::EXTERNAL_SINGULARITY;
+        risk.message = oss.str();
+        risk.point_index = p;
+        risk.joint_name = item.first;
+        risk.value = q;
+        return risk;
+      }
+    }
+
+    const auto q5_idx = index.find("joint_5");
+    if (q5_idx != index.end()) {
+      const double q5 = point.positions[q5_idx->second];
+
+      if (std::abs(q5) < kInternalSingularityDanger) {
+        std::ostringstream oss;
+        oss << "internal singularity: point " << p
+            << ", joint_5 = " << q5;
+        risk.type = TrajectoryRiskType::INTERNAL_SINGULARITY;
+        risk.message = oss.str();
+        risk.point_index = p;
+        risk.joint_name = "joint_5";
+        risk.value = q5;
+        return risk;
+      }
+    }
+
+    if (p > 0) {
+      const auto & prev = traj.points[p - 1];
+
+      for (size_t j = 0; j < traj.joint_names.size(); ++j) {
+        const double dq = std::abs(point.positions[j] - prev.positions[j]);
+
+        if (dq > kMaxJointJump) {
+          std::ostringstream oss;
+          oss << "joint jump: segment " << p - 1 << " -> " << p
+              << ", " << traj.joint_names[j]
+              << ", dq = " << dq;
+          risk.type = TrajectoryRiskType::JOINT_JUMP;
+          risk.message = oss.str();
+          risk.point_index = p;
+          risk.joint_name = traj.joint_names[j];
+          risk.value = dq;
+          return risk;
+        }
+      }
+    }
+  }
+
+  risk.type = TrajectoryRiskType::SAFE;
+  risk.message = "trajectory is safe.";
+  return risk;
+}
+
+// 外部奇异回退构型
+inline std::map<std::string, double> makeBoundaryRetreatTarget(
+  const std::map<std::string, double> & q_last_safe)
+{
+  std::map<std::string, double> q_recover = q_last_safe;
+
+  for (auto & item : q_recover) {
+    const std::string & name = item.first;
+    double & q = item.second;
+
+    auto lim_it = kAbb4600SafeLimits.find(name);
+    if (lim_it == kAbb4600SafeLimits.end()) {
+      continue;
+    }
+
+    const auto & lim = lim_it->second;
+
+    if (q > lim.upper - kExternalBoundaryMargin) {
+      q -= 0.20;
+    }
+
+    if (q < lim.lower + kExternalBoundaryMargin) {
+      q += 0.20;
+    }
+
+    q = std::max(lim.lower + 0.20, std::min(lim.upper - 0.20, q));
+  }
+
+  return q_recover;
+}
+
+}  // namespace abb4600_rws_cpp

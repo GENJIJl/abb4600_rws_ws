@@ -1,0 +1,157 @@
+planning_plugins:
+  - ompl_interface/OMPLPlanner
+request_adapters: "default_planning_request_adapters/ResolveConstraintFrames default_planning_request_adapters/ValidateWorkspaceBounds default_planning_request_adapters/CheckStartStateBounds default_planning_request_adapters/CheckStartStateCollision"
+response_adapters:
+  - default_planning_response_adapters/AddTimeOptimalParameterization
+  - default_planning_response_adapters/ValidateSolution
+  - default_planning_response_adapters/DisplayMotionPath
+planner_configs:
+  SBLkConfigDefault:
+    type: geometric::SBL
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+  ESTkConfigDefault:
+    type: geometric::EST
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+  LBKPIECEkConfigDefault:
+    type: geometric::LBKPIECE
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    border_fraction: 0.9  # 聚焦边界的时间比例；默认值：0.9
+    min_valid_path_fraction: 0.5  # 接受有效比例高于 0.5 的部分有效运动；默认值：0.5
+  BKPIECEkConfigDefault:
+    type: geometric::BKPIECE
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    border_fraction: 0.9  # 聚焦边界的时间比例；默认值：0.9
+    failed_expansion_score_factor: 0.5  # 扩展运动失败时按该因子缩放分数；默认值：0.5
+    min_valid_path_fraction: 0.5  # 接受有效比例高于 0.5 的部分有效运动；默认值：0.5
+  KPIECEkConfigDefault:
+    type: geometric::KPIECE
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+    border_fraction: 0.9  # 聚焦边界的时间比例；默认值：0.9 (0.0,1.]
+    failed_expansion_score_factor: 0.5  # 扩展运动失败时按该因子缩放分数；默认值：0.5
+    min_valid_path_fraction: 0.5  # 接受有效比例高于 0.5 的部分有效运动；默认值：0.5
+  RRTkConfigDefault:
+    type: geometric::RRT
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    goal_bias: 0.05  # 接近目标时，以该概率选择目标；默认值：0.05
+  RRTConnectkConfigDefault:
+    type: geometric::RRTConnect
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+  RRTstarkConfigDefault:
+    type: geometric::RRTstar
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    goal_bias: 0.05  # 接近目标时，以该概率选择目标；默认值：0.05
+    delay_collision_checking: 1  # 一旦找到无碰撞父节点就停止碰撞检查；默认值：1
+  TRRTkConfigDefault:
+    type: geometric::TRRT
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    goal_bias: 0.05  # 接近目标时，以该概率选择目标；默认值：0.05
+    max_states_failed: 10  # when to start increasing temp. default: 10
+    temp_change_factor: 2.0  # 温度增减幅度；默认值：2.0
+    min_temperature: 10e-10  # 温度变化下限；默认值：10e-10
+    init_temperature: 10e-6  # 初始温度；默认值：10e-6
+    frountier_threshold: 0.0  # 新状态到最近邻的距离，小于该值则不作为 frontier；默认值：0.0，在 setup() 中设置
+    frountierNodeRatio: 0.1  # 比例为 1/10，即每 10 个 frontier 对应 1 个非 frontier；默认值：0.1
+    k_constant: 0.0  # 用于归一化表达式的值；默认值：0.0，在 setup() 中设置
+  PRMkConfigDefault:
+    type: geometric::PRM
+    max_nearest_neighbors: 10  # 使用 k 个最近邻；默认值：10
+  PRMstarkConfigDefault:
+    type: geometric::PRMstar
+  FMTkConfigDefault:
+    type: geometric::FMT
+    num_samples: 1000  # 规划器应采样的状态数量；默认值：1000
+    radius_multiplier: 1.1  # 最近邻搜索半径使用的乘数；默认值：1.1
+    nearest_k: 1  # 使用 K-nearest 策略；默认值：1
+    cache_cc: 1  # 使用碰撞检查缓存；默认值：1
+    heuristics: 0  # 启用 cost-to-go 启发式；默认值：0
+    extended_fmt: 1  # 启用扩展 FMT*：规划未成功完成时添加新采样；默认值：1
+  BFMTkConfigDefault:
+    type: geometric::BFMT
+    num_samples: 1000  # 规划器应采样的状态数量；默认值：1000
+    radius_multiplier: 1.0  # 最近邻搜索半径使用的乘数；默认值：1.0
+    nearest_k: 1  # 使用 K-nearest 策略；默认值：1
+    balanced: 0  # 探索策略：balanced 为 true 时每次迭代扩展一棵树；false 时选择最大 cost-to-go 最低的树；默认值：1
+    optimality: 1  # 终止策略：optimality 为 true 时在找到最优可能路径后结束；否则找到第一条可行路径后结束；默认值：1
+    heuristics: 1  # 启用 cost-to-go 启发式；默认值：1
+    cache_cc: 1  # 使用碰撞检查缓存；默认值：1
+    extended_fmt: 1  # 启用扩展 FMT*：规划未成功完成时添加新采样；默认值：1
+  PDSTkConfigDefault:
+    type: geometric::PDST
+  STRIDEkConfigDefault:
+    type: geometric::STRIDE
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+    use_projected_distance: 0  # 是否基于状态投影距离而非状态空间本身距离计算最近邻；默认值：0
+    degree: 16  # GNAT 几何最近邻访问树中节点的期望度；默认值：16
+    max_degree: 18  # GNAT 中节点的最大度；默认值：12
+    min_degree: 12  # GNAT 中节点的最小度；默认值：12
+    max_pts_per_leaf: 6  # GNAT 中每个叶子的最大点数；默认值：6
+    estimated_dimension: 0.0  # 自由空间估计维度；默认值：0.0
+    min_valid_path_fraction: 0.2  # 接受有效比例高于 0.2 的部分有效运动；默认值：0.2
+  BiTRRTkConfigDefault:
+    type: geometric::BiTRRT
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    temp_change_factor: 0.1  # 温度增减幅度；默认值：0.1
+    init_temperature: 100  # 初始温度；默认值：100
+    frountier_threshold: 0.0  # 新状态到最近邻的距离，小于该值则不作为 frontier；默认值：0.0，在 setup() 中设置
+    frountier_node_ratio: 0.1  # 比例为 1/10，即每 10 个 frontier 对应 1 个非 frontier；默认值：0.1
+    cost_threshold: 1e300  # 成本阈值；任何不优于该阈值的运动都不会继续扩展；默认值：inf
+  LBTRRTkConfigDefault:
+    type: geometric::LBTRRT
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+    epsilon: 0.4  # 最优性近似因子；默认值：0.4
+  BiESTkConfigDefault:
+    type: geometric::BiEST
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+  ProjESTkConfigDefault:
+    type: geometric::ProjEST
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+    goal_bias: 0.05  # When close to goal select goal, with this probability. default: 0.05
+  LazyPRMkConfigDefault:
+    type: geometric::LazyPRM
+    range: 0.0  # 添加到树中的最大运动距离；maxDistance_ 默认值为 0.0，若为 0.0 则在 setup() 中设置
+  LazyPRMstarkConfigDefault:
+    type: geometric::LazyPRMstar
+  SPARSkConfigDefault:
+    type: geometric::SPARS
+    stretch_factor: 3.0  # 路网稀疏图拉伸因子，路径质量的乘法上界；该参数大于 3 通常没有意义；默认值：3.0
+    sparse_delta_fraction: 0.25  # 连接距离的 delta 比例，表示稀疏采样的可见范围；默认值：0.25
+    dense_delta_fraction: 0.001  # 接口检测的 delta 比例；默认值：0.001
+    max_failures: 1000  # 最大连续失败次数限制；默认值：1000
+  SPARStwokConfigDefault:
+    type: geometric::SPARStwo
+    stretch_factor: 3.0  # 路网稀疏图拉伸因子，路径质量的乘法上界；该参数大于 3 通常没有意义；默认值：3.0
+    sparse_delta_fraction: 0.25  # 连接距离的 delta 比例，表示稀疏采样的可见范围；默认值：0.25
+    dense_delta_fraction: 0.001  # 接口检测的 delta 比例；默认值：0.001
+    max_failures: 5000  # 最大连续失败次数限制；默认值：5000
+manipulator:
+  default_planner_config: RRTConnectkConfigDefault
+  planner_configs:
+    - SBLkConfigDefault
+    - ESTkConfigDefault
+    - LBKPIECEkConfigDefault
+    - BKPIECEkConfigDefault
+    - KPIECEkConfigDefault
+    - RRTkConfigDefault
+    - RRTConnectkConfigDefault
+    - RRTstarkConfigDefault
+    - TRRTkConfigDefault
+    - PRMkConfigDefault
+    - PRMstarkConfigDefault
+    - FMTkConfigDefault
+    - BFMTkConfigDefault
+    - PDSTkConfigDefault
+    - STRIDEkConfigDefault
+    - BiTRRTkConfigDefault
+    - LBTRRTkConfigDefault
+    - BiESTkConfigDefault
+    - ProjESTkConfigDefault
+    - LazyPRMkConfigDefault
+    - LazyPRMstarkConfigDefault
+    - SPARSkConfigDefault
+    - SPARStwokConfigDefault
+  projection_evaluator: joints(joint_1,joint_2)
+  longest_valid_segment_fraction: 0.005

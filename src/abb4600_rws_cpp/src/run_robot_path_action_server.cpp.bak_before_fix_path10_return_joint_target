@@ -1,0 +1,961 @@
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <std_msgs/msg/empty.hpp>
+#include <array>
+#include <limits>
+#include <map>
+#include <memory>
+#include <tf2/LinearMath/Vector3.h>
+#include <string>
+#include <thread>
+#include <vector>
+
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+
+#include <abb4600_interfaces/action/run_robot_path.hpp>
+
+#include <geometry_msgs/msg/pose.hpp>
+#include <moveit/robot_trajectory/robot_trajectory.h>
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/trajectory_processing/time_optimal_trajectory_generation.h>
+#include <moveit_msgs/msg/robot_trajectory.hpp>
+
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
+#include "abb4600_rws_cpp/trajectory_guard.hpp"
+
+namespace
+{
+
+struct RapidTarget
+{
+  std::string name;
+  std::array<double, 3> position_mm;
+  std::array<double, 4> rapid_quaternion;
+};
+
+geometry_msgs::msg::Pose toTool0Pose(const RapidTarget & target)
+{
+  tf2::Quaternion tcp_orientation(
+    target.rapid_quaternion[1],
+    target.rapid_quaternion[2],
+    target.rapid_quaternion[3],
+    target.rapid_quaternion[0]);
+  tcp_orientation.normalize();
+
+  const tf2::Vector3 tcp_position(
+    target.position_mm[0] / 1000.0,
+    target.position_mm[1] / 1000.0,
+    target.position_mm[2] / 1000.0);
+
+  const tf2::Transform base_to_tcp(tcp_orientation, tcp_position);
+
+  // 当前项目里的 GZ 工具：tool0 -> TCP 偏移。
+  const tf2::Transform tool0_to_gz_tcp(
+    tf2::Quaternion::getIdentity(),
+    tf2::Vector3(-0.075, 0.0, 0.216));
+
+  const tf2::Transform base_to_tool0 = base_to_tcp * tool0_to_gz_tcp.inverse();
+
+  geometry_msgs::msg::Pose pose;
+  pose.position.x = base_to_tool0.getOrigin().x();
+  pose.position.y = base_to_tool0.getOrigin().y();
+  pose.position.z = base_to_tool0.getOrigin().z();
+  pose.orientation = tf2::toMsg(base_to_tool0.getRotation());
+  return pose;
+}
+
+std::vector<RapidTarget> makePath10Targets()
+{
+  return {
+    {"Target_210", {245.832758885, -1339.12895635, 777.464240183},
+      {0.478400558, -0.521495507, 0.506705506, -0.492366604}},
+    {"Target_30", {1619.584450471, -378.494495066, 655.666637316},
+      {0.49193704, -0.507171975, 0.521041538, -0.478842618}},
+    {"Target_40", {1619.584424127, 85.971895363, 655.66656862},
+      {0.49193703, -0.507171938, 0.521041646, -0.478842549}},
+    {"Target_50", {1621.091434395, 80.467737853, 681.868711263},
+      {0.569617259, -0.405851496, 0.603317837, -0.383181849}},
+    {"Target_60", {1542.091373439, 84.999617909, 658.660023036},
+      {0.569617231, -0.405851529, 0.60331785, -0.383181835}},
+    {"Target_70", {1540.6423709, 98.101948859, 633.454361049},
+      {0.495114067, -0.503691567, 0.524407042, -0.475556642}},
+    {"Target_80", {1555.131448251, 98.101972671, 815.902147503},
+      {0.495113696, -0.503691987, 0.524406627, -0.475557042}},
+    {"Target_90", {1555.131420108, 98.101992456, 893.488734831},
+      {0.495113721, -0.503691945, 0.524406672, -0.475557011}},
+    {"Target_100", {1543.836348907, 96.610449733, 893.488864478},
+      {0.495113724, -0.503691952, 0.524406637, -0.475557039}},
+    {"Target_110", {1542.309350856, 92.33936431, 900.547870765},
+      {0.402000238, -0.589419901, 0.425784129, -0.556496059}},
+    {"Target_120", {1542.309355626, 41.795477908, 911.806915943},
+      {0.401999776, -0.58942009, 0.425783845, -0.556496411}},
+    {"Target_130", {1542.309406172, 14.649335824, 936.758778901},
+      {0.40199986, -0.589420025, 0.425783937, -0.556496349}},
+    {"Target_140", {1542.309394052, -50.086859014, 991.490022432},
+      {0.401999863, -0.589420062, 0.425783863, -0.556496364}},
+    {"Target_150", {1542.309389906, -125.338150744, 1030.917991469},
+      {0.4019997, -0.58942013, 0.425783821, -0.556496441}},
+    {"Target_160", {1543.538547361, -121.570669946, 1052.290846321},
+      {0.478400645, -0.521496192, 0.506704746, -0.492366575}},
+    {"Target_170", {1543.538324064, -119.123263464, 1125.30806886},
+      {0.478400532, -0.521496219, 0.50670467, -0.492366734}},
+    {"Target_180", {1543.538325459, -250.366397395, 1145.547068237},
+      {0.478400608, -0.521496077, 0.506704704, -0.492366777}},
+    {"Target_190", {1543.538314403, -444.694603495, 1144.412018467},
+      {0.478400753, -0.521495973, 0.50670489, -0.492366554}},
+    {"Target_200", {1266.543390848, -444.69461636, 742.986355055},
+      {0.478400777, -0.521495921, 0.506704892, -0.492366584}},
+    {"Target_210", {245.832758885, -1339.12895635, 777.464240183},
+      {0.478400558, -0.521495507, 0.506705506, -0.492366604}},
+  };
+}
+
+double clampScale(double value, double fallback)
+{
+  if (value <= 0.0) {
+    return fallback;
+  }
+
+  if (value > 1.0) {
+    return 1.0;
+  }
+
+  return value;
+}
+
+}  // namespace
+
+class RunRobotPathActionServer : public rclcpp::Node
+{
+public:
+  using RunRobotPath = abb4600_interfaces::action::RunRobotPath;
+  using GoalHandleRunRobotPath = rclcpp_action::ServerGoalHandle<RunRobotPath>;
+
+  RunRobotPathActionServer()
+  : Node("run_robot_path_action_server")
+  {
+    using namespace std::placeholders;
+
+    action_server_ = rclcpp_action::create_server<RunRobotPath>(
+      this,
+      "/abb4600/run_robot_path",
+      std::bind(&RunRobotPathActionServer::handleGoal, this, _1, _2),
+      std::bind(&RunRobotPathActionServer::handleCancel, this, _1),
+      std::bind(&RunRobotPathActionServer::handleAccepted, this, _1));
+
+    this->declare_parameter<bool>("return_home.configured", false);
+    this->declare_parameter<std::vector<double>>("return_home.joints", std::vector<double>{});
+    this->declare_parameter<bool>("return_home.use_middle", false);
+    this->declare_parameter<std::vector<double>>("return_home.middle_joints", std::vector<double>{});
+
+    pause_sub_ = this->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/pause",
+      rclcpp::QoS(10),
+      [this](const std_msgs::msg::Empty::SharedPtr)
+      {
+        pause_requested_.store(true);
+        RCLCPP_WARN(this->get_logger(), "[RunRobotPath] Pause requested.");
+      });
+
+    resume_sub_ = this->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/resume",
+      rclcpp::QoS(10),
+      [this](const std_msgs::msg::Empty::SharedPtr)
+      {
+        pause_requested_.store(false);
+        pause_cv_.notify_all();
+        RCLCPP_WARN(this->get_logger(), "[RunRobotPath] Resume requested.");
+      });
+
+    cancel_sub_ = this->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/cancel",
+      rclcpp::QoS(10),
+      [this](const std_msgs::msg::Empty::SharedPtr)
+      {
+        cancel_requested_.store(true);
+        pause_requested_.store(false);
+        pause_cv_.notify_all();
+        RCLCPP_ERROR(this->get_logger(), "[RunRobotPath] Cancel requested.");
+
+        std::lock_guard<std::mutex> lock(active_move_group_mutex_);
+        if (active_move_group_ != nullptr)
+        {
+          RCLCPP_ERROR(this->get_logger(), "[RunRobotPath] Calling move_group.stop().");
+          active_move_group_->stop();
+        }
+      });
+
+    RCLCPP_INFO(get_logger(), "Action server ready: /abb4600/run_robot_path");
+    RCLCPP_INFO(get_logger(), "Pause topic:  /abb4600_unhook/pause");
+    RCLCPP_INFO(get_logger(), "Resume topic: /abb4600_unhook/resume");
+    RCLCPP_INFO(get_logger(), "Cancel topic: /abb4600_unhook/cancel");
+    RCLCPP_INFO(get_logger(), "Supported path_name values: path10, return_home");
+  }
+
+private:
+  rclcpp_action::Server<RunRobotPath>::SharedPtr action_server_;
+
+
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr pause_sub_;
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr resume_sub_;
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr cancel_sub_;
+
+  std::atomic_bool pause_requested_{false};
+  std::atomic_bool cancel_requested_{false};
+
+  std::mutex pause_mutex_;
+  std::condition_variable pause_cv_;
+
+  std::mutex active_move_group_mutex_;
+  moveit::planning_interface::MoveGroupInterface * active_move_group_{nullptr};
+
+
+  rclcpp_action::GoalResponse handleGoal(
+    const rclcpp_action::GoalUUID &,
+    std::shared_ptr<const RunRobotPath::Goal> goal)
+  {
+    RCLCPP_INFO(
+      get_logger(),
+      "Received goal path_name=%s vel=%.3f acc=%.3f planning=%.1f eef_step=%.3f min_fraction=%.2f return_to_start=%s",
+      goal->path_name.c_str(),
+      goal->velocity_scale,
+      goal->acceleration_scale,
+      goal->planning_time,
+      goal->eef_step,
+      goal->minimum_cartesian_fraction,
+      goal->return_to_start ? "true" : "false");
+
+    if (goal->path_name != "path10" && goal->path_name != "return_home") {
+      RCLCPP_ERROR(get_logger(), "Unknown path_name: %s", goal->path_name.c_str());
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+
+    return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
+  }
+
+  rclcpp_action::CancelResponse handleCancel(
+    const std::shared_ptr<GoalHandleRunRobotPath>)
+  {
+    RCLCPP_WARN(get_logger(), "Cancel requested.");
+    return rclcpp_action::CancelResponse::ACCEPT;
+  }
+
+  void handleAccepted(const std::shared_ptr<GoalHandleRunRobotPath> goal_handle)
+  {
+    std::thread{
+      std::bind(&RunRobotPathActionServer::execute, this, std::placeholders::_1),
+      goal_handle}.detach();
+  }
+
+  void publishFeedback(
+    const std::shared_ptr<GoalHandleRunRobotPath> & goal_handle,
+    double progress,
+    const std::string & stage)
+  {
+    auto feedback = std::make_shared<RunRobotPath::Feedback>();
+    feedback->progress = progress;
+    feedback->current_stage = stage;
+    goal_handle->publish_feedback(feedback);
+
+    RCLCPP_INFO(get_logger(), "[RunRobotPath] %.0f%% %s", progress * 100.0, stage.c_str());
+  }
+
+  bool checkCancel(
+    const std::shared_ptr<GoalHandleRunRobotPath> & goal_handle,
+    const std::shared_ptr<RunRobotPath::Result> & result)
+  {
+    if (goal_handle->is_canceling()) {
+      result->success = false;
+      result->message = "Goal canceled.";
+      goal_handle->canceled(result);
+      RCLCPP_WARN(get_logger(), "Goal canceled.");
+      return true;
+    }
+
+    return false;
+  }
+
+
+  bool waitIfPaused(
+    const std::shared_ptr<GoalHandleRunRobotPath> & goal_handle,
+    const std::shared_ptr<RunRobotPath::Result> & result,
+    const std::string & stage)
+  {
+    if (cancel_requested_.load() || goal_handle->is_canceling())
+    {
+      result->success = false;
+      result->message = "Canceled before " + stage + ".";
+      return false;
+    }
+
+    if (!pause_requested_.load())
+    {
+      return true;
+    }
+
+    publishFeedback(goal_handle, -1.0, "PAUSED before " + stage + ". Waiting for /abb4600_unhook/resume or /abb4600_unhook/cancel");
+
+    RCLCPP_WARN(
+      get_logger(),
+      "[RunRobotPath] Paused before %s. Waiting for resume/cancel...",
+      stage.c_str());
+
+    std::unique_lock<std::mutex> lock(pause_mutex_);
+    pause_cv_.wait(lock, [this]()
+      {
+        return !pause_requested_.load() || cancel_requested_.load();
+      });
+
+    if (cancel_requested_.load() || goal_handle->is_canceling())
+    {
+      result->success = false;
+      result->message = "Canceled while paused before " + stage + ".";
+      return false;
+    }
+
+    RCLCPP_WARN(get_logger(), "[RunRobotPath] Resumed: %s", stage.c_str());
+    publishFeedback(goal_handle, -1.0, "RESUMED " + stage);
+    return true;
+  }
+
+  bool guardedExecutePlan(
+    moveit::planning_interface::MoveGroupInterface & move_group,
+    const moveit::planning_interface::MoveGroupInterface::Plan & plan,
+    const std::shared_ptr<GoalHandleRunRobotPath> & goal_handle,
+    const std::shared_ptr<RunRobotPath::Result> & result,
+    const std::string & stage)
+  {
+    if (!waitIfPaused(goal_handle, result, stage))
+    {
+      return false;
+    }
+
+    if (cancel_requested_.load() || goal_handle->is_canceling())
+    {
+      result->success = false;
+      result->message = "Canceled before executing " + stage + ".";
+      return false;
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(active_move_group_mutex_);
+      active_move_group_ = &move_group;
+    }
+
+    const auto exec_result = move_group.execute(plan);
+
+    {
+      std::lock_guard<std::mutex> lock(active_move_group_mutex_);
+      active_move_group_ = nullptr;
+    }
+
+    if (cancel_requested_.load() || goal_handle->is_canceling())
+    {
+      result->success = false;
+      result->message = "Canceled during " + stage + ".";
+      return false;
+    }
+
+    if (exec_result != moveit::core::MoveItErrorCode::SUCCESS)
+    {
+      result->message = "Failed to execute " + stage + ".";
+      return false;
+    }
+
+    return true;
+  }
+
+  bool guardedExecuteTrajectory(
+    moveit::planning_interface::MoveGroupInterface & move_group,
+    const moveit_msgs::msg::RobotTrajectory & trajectory,
+    const std::shared_ptr<GoalHandleRunRobotPath> & goal_handle,
+    const std::shared_ptr<RunRobotPath::Result> & result,
+    const std::string & stage)
+  {
+    if (!waitIfPaused(goal_handle, result, stage))
+    {
+      return false;
+    }
+
+    if (cancel_requested_.load() || goal_handle->is_canceling())
+    {
+      result->success = false;
+      result->message = "Canceled before executing " + stage + ".";
+      return false;
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(active_move_group_mutex_);
+      active_move_group_ = &move_group;
+    }
+
+    const auto exec_result = move_group.execute(trajectory);
+
+    {
+      std::lock_guard<std::mutex> lock(active_move_group_mutex_);
+      active_move_group_ = nullptr;
+    }
+
+    if (cancel_requested_.load() || goal_handle->is_canceling())
+    {
+      result->success = false;
+      result->message = "Canceled during " + stage + ".";
+      return false;
+    }
+
+    if (exec_result != moveit::core::MoveItErrorCode::SUCCESS)
+    {
+      result->message = "Failed to execute " + stage + ".";
+      return false;
+    }
+
+    return true;
+  }
+
+  void execute(const std::shared_ptr<GoalHandleRunRobotPath> goal_handle)
+  {
+    const auto goal = goal_handle->get_goal();
+    auto result = std::make_shared<RunRobotPath::Result>();
+
+    pause_requested_.store(false);
+    cancel_requested_.store(false);
+
+    bool ok = false;
+
+    if (goal->path_name == "path10") {
+      ok = runPath10(goal_handle, goal, result);
+    } else if (goal->path_name == "return_home") {
+      ok = runReturnHome(goal_handle, goal, result);
+    } else {
+      result->message = "Unknown path_name: " + goal->path_name;
+      ok = false;
+    }
+
+    if (!rclcpp::ok()) {
+      return;
+    }
+
+    if (goal_handle->is_canceling()) {
+      result->success = false;
+      result->message = "Canceled.";
+      goal_handle->canceled(result);
+      return;
+    }
+
+    if (ok) {
+      result->success = true;
+      goal_handle->succeed(result);
+      RCLCPP_INFO(get_logger(), "RunRobotPath succeeded: %s", result->message.c_str());
+    } else {
+      result->success = false;
+      goal_handle->abort(result);
+      RCLCPP_ERROR(get_logger(), "RunRobotPath failed: %s", result->message.c_str());
+    }
+  }
+
+
+  bool getJointVectorParameter(
+    const std::string & parameter_name,
+    std::vector<double> & values,
+    std::string & error_message)
+  {
+    values.clear();
+
+    rclcpp::Parameter parameter;
+    if (!this->get_parameter(parameter_name, parameter))
+    {
+      error_message = "Missing parameter: " + parameter_name;
+      return false;
+    }
+
+    values = parameter.as_double_array();
+
+    if (values.size() != 6)
+    {
+      std::ostringstream oss;
+      oss << "Parameter "
+          << parameter_name
+          << " must contain exactly 6 joint values, but got "
+          << values.size()
+          << ".";
+      error_message = oss.str();
+      return false;
+    }
+
+    for (size_t i = 0; i < values.size(); ++i)
+    {
+      if (!std::isfinite(values[i]))
+      {
+        std::ostringstream oss;
+        oss << "Parameter "
+            << parameter_name
+            << " contains NaN or Inf at index "
+            << i
+            << ".";
+        error_message = oss.str();
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  std::map<std::string, double> makeJointTargetMap(const std::vector<double> & joints)
+  {
+    return {
+      {"joint_1", joints[0]},
+      {"joint_2", joints[1]},
+      {"joint_3", joints[2]},
+      {"joint_4", joints[3]},
+      {"joint_5", joints[4]},
+      {"joint_6", joints[5]},
+    };
+  }
+
+  bool planAndExecuteJointTarget(
+    moveit::planning_interface::MoveGroupInterface & move_group,
+    const std::map<std::string, double> & joint_target,
+    const std::string & stage,
+    double plan_progress,
+    double execute_progress,
+    const std::shared_ptr<GoalHandleRunRobotPath> & goal_handle,
+    const std::shared_ptr<RunRobotPath::Result> & result)
+  {
+    if (checkCancel(goal_handle, result))
+    {
+      return false;
+    }
+
+    publishFeedback(goal_handle, plan_progress, "planning " + stage);
+
+    move_group.setStartStateToCurrentState();
+    move_group.setJointValueTarget(joint_target);
+
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    const auto plan_result = move_group.plan(plan);
+
+    if (plan_result != moveit::core::MoveItErrorCode::SUCCESS)
+    {
+      result->message = "Failed to plan " + stage + ".";
+      return false;
+    }
+
+    std::string guard_error;
+    if (!abb4600_rws_cpp::validateTrajectoryGuard(
+        plan.trajectory_,
+        get_logger(),
+        guard_error))
+    {
+      result->message = guard_error;
+      return false;
+    }
+
+    if (checkCancel(goal_handle, result))
+    {
+      return false;
+    }
+
+    publishFeedback(goal_handle, execute_progress, "executing " + stage);
+
+    if (!guardedExecutePlan(
+        move_group,
+        plan,
+        goal_handle,
+        result,
+        stage))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+
+  geometry_msgs::msg::Pose makeTool0PoseFromRapidTarget(
+    double x_mm,
+    double y_mm,
+    double z_mm,
+    double q1,
+    double q2,
+    double q3,
+    double q4)
+  {
+    // ABB robtarget orientation is [q1, q2, q3, q4], where q1 is w.
+    // ROS geometry_msgs Quaternion is x, y, z, w.
+    tf2::Quaternion q(q2, q3, q4, q1);
+    q.normalize();
+
+    const tf2::Vector3 tcp_position(
+      x_mm / 1000.0,
+      y_mm / 1000.0,
+      z_mm / 1000.0);
+
+    // RAPID tooldata:
+    // PERS tooldata GZ := [TRUE,[[-75,0,216],[1,0,0,0]], ...]
+    // MoveIt normally controls tool0/flange, so convert TCP target to tool0 target.
+    const tf2::Vector3 gz_tcp_offset_in_tool0(
+      -75.0 / 1000.0,
+      0.0 / 1000.0,
+      216.0 / 1000.0);
+
+    const tf2::Vector3 tool0_position =
+      tcp_position - tf2::quatRotate(q, gz_tcp_offset_in_tool0);
+
+    geometry_msgs::msg::Pose pose;
+    pose.position.x = tool0_position.x();
+    pose.position.y = tool0_position.y();
+    pose.position.z = tool0_position.z();
+
+    pose.orientation = tf2::toMsg(q);
+    return pose;
+  }
+
+
+  bool runReturnHome(
+    const std::shared_ptr<GoalHandleRunRobotPath> & goal_handle,
+    std::shared_ptr<const RunRobotPath::Goal> goal,
+    std::shared_ptr<RunRobotPath::Result> result)
+  {
+    static constexpr char kGroupName[] = "manipulator";
+
+    try
+    {
+      const double velocity_scale = clampScale(goal->velocity_scale, 0.08);
+      const double acceleration_scale = clampScale(goal->acceleration_scale, 0.08);
+      const double planning_time = goal->planning_time > 0.0 ? goal->planning_time : 60.0;
+
+      publishFeedback(goal_handle, 0.05, "creating MoveGroupInterface for direct return_home to Target_210");
+
+      moveit::planning_interface::MoveGroupInterface move_group(shared_from_this(), kGroupName);
+      move_group.setMaxVelocityScalingFactor(velocity_scale);
+      move_group.setMaxAccelerationScalingFactor(acceleration_scale);
+      move_group.setPlanningTime(planning_time);
+      move_group.setNumPlanningAttempts(10);
+      move_group.setStartStateToCurrentState();
+
+      // Task home point from RAPID:
+      // Target_210
+      const auto target_210_pose = makeTool0PoseFromRapidTarget(
+        245.832758885, -1339.12895635, 777.464240183,
+        0.478400558, -0.521495507, 0.506705506, -0.492366604);
+
+      if (checkCancel(goal_handle, result))
+      {
+        return false;
+      }
+
+      publishFeedback(goal_handle, 0.20, "planning joint-space return_home to Target_210");
+
+      move_group.clearPoseTargets();
+      // 固定使用 Target_210 对应的六轴关节角，避免 MoveIt 选择 joint_6 = +2.975 的等价 IK 解。
+      std::map<std::string, double> target_210_joint_target = {
+        {"joint_1", -1.6445361947439372},
+        {"joint_2", 0.4661326528328919},
+        {"joint_3", 0.251202503374156},
+        {"joint_4", 1.479037244594271},
+        {"joint_5", 1.5884767869558236},
+        {"joint_6", -3.8906280154632995},
+      };
+
+      move_group.clearPoseTargets();
+      move_group.setStartStateToCurrentState();
+      move_group.setJointValueTarget(target_210_joint_target);
+
+      moveit::planning_interface::MoveGroupInterface::Plan home_plan;
+      const auto plan_result = move_group.plan(home_plan);
+
+      if (plan_result != moveit::core::MoveItErrorCode::SUCCESS)
+      {
+        result->message = "Failed to plan direct return_home to Target_210.";
+        move_group.clearPoseTargets();
+        return false;
+      }
+
+      std::string guard_error;
+
+      // 归位只做硬限位检查，不再使用 0.10 rad 软安全余量，也不检查段速度。
+      // 这样可以避免因为接近 joint_3 下限一点点就无法归位。
+      const double return_home_guard_margin = 0.0;
+      const bool check_segment_velocity = false;
+
+      if (!abb4600_rws_cpp::validateTrajectoryGuard(
+          home_plan.trajectory_,
+          get_logger(),
+          guard_error,
+          return_home_guard_margin,
+          check_segment_velocity))
+      {
+        result->message =
+          "Direct return_home to Target_210 rejected by hard-limit TrajectoryGuard: " + guard_error;
+        move_group.clearPoseTargets();
+        return false;
+      }
+
+      if (checkCancel(goal_handle, result))
+      {
+        move_group.clearPoseTargets();
+        return false;
+      }
+
+      publishFeedback(goal_handle, 0.70, "executing joint-space return_home to Target_210");
+
+      if (!guardedExecutePlan(
+          move_group,
+          home_plan,
+          goal_handle,
+          result,
+          "direct return_home to Target_210"))
+      {
+        move_group.clearPoseTargets();
+        return false;
+      }
+
+      move_group.clearPoseTargets();
+
+      publishFeedback(goal_handle, 1.0, "return_home finished at Target_210");
+      result->message = "return_home finished by joint-space plan to Target_210.";
+      return true;
+    }
+    catch (const std::exception & e)
+    {
+      result->message = std::string("Exception in runReturnHome: ") + e.what();
+      return false;
+    }
+  }
+
+
+
+  bool runPath10(
+    const std::shared_ptr<GoalHandleRunRobotPath> & goal_handle,
+    std::shared_ptr<const RunRobotPath::Goal> goal,
+    std::shared_ptr<RunRobotPath::Result> result)
+  {
+    static constexpr char kGroupName[] = "manipulator";
+
+    const double velocity_scale = clampScale(goal->velocity_scale, 0.20);
+    const double acceleration_scale = clampScale(goal->acceleration_scale, 0.20);
+    const double planning_time = goal->planning_time > 0.0 ? goal->planning_time : 60.0;
+    const double eef_step = goal->eef_step > 0.0 ? goal->eef_step : 0.01;
+    const double minimum_fraction =
+      goal->minimum_cartesian_fraction > 0.0 ? goal->minimum_cartesian_fraction : 0.90;
+
+    try {
+      publishFeedback(goal_handle, 0.05, "creating MoveGroupInterface");
+
+      moveit::planning_interface::MoveGroupInterface move_group(shared_from_this(), kGroupName);
+      move_group.setEndEffectorLink("tool0");
+      move_group.setPoseReferenceFrame("base_link");
+      move_group.setMaxVelocityScalingFactor(velocity_scale);
+      move_group.setMaxAccelerationScalingFactor(acceleration_scale);
+      move_group.setPlanningTime(planning_time);
+
+      const auto targets = makePath10Targets();
+
+      std::vector<geometry_msgs::msg::Pose> waypoints;
+      waypoints.reserve(targets.size());
+
+      for (const auto & target : targets) {
+        waypoints.push_back(toTool0Pose(target));
+      }
+
+      if (checkCancel(goal_handle, result)) {
+        return false;
+      }
+
+      publishFeedback(goal_handle, 0.15, "planning to fixed Target_210 joint posture");
+      // 固定使用 RobotStudio 中 MoveJ Target_210 对应的六轴构型。
+      // 不再用 waypoints.front() 的位姿让 MoveIt 自己求 IK。
+      std::map<std::string, double> path10_start_joints = {
+        {"joint_1", -1.6445361947439372},
+        {"joint_2", 0.4661326528328919},
+        {"joint_3", 0.251202503374156},
+        {"joint_4", 1.479037244594271},
+        {"joint_5", 1.5884767869558236},
+        {"joint_6", -3.8906280154632995},
+      };
+
+      move_group.clearPoseTargets();
+      move_group.setStartStateToCurrentState();
+      move_group.setJointValueTarget(path10_start_joints);
+
+      moveit::planning_interface::MoveGroupInterface::Plan first_plan;
+      const auto plan_result = move_group.plan(first_plan);
+
+      if (plan_result != moveit::core::MoveItErrorCode::SUCCESS) {
+        result->message = "Failed to plan to path10 start.";
+        return false;
+      }
+
+      std::string guard_error;
+      if (!abb4600_rws_cpp::validateTrajectoryGuard(
+          first_plan.trajectory_,
+          get_logger(),
+          guard_error))
+      {
+        result->message = guard_error;
+        return false;
+      }
+
+      publishFeedback(goal_handle, 0.25, "executing to path10 start");
+      if (!guardedExecutePlan(
+          move_group,
+          first_plan,
+          goal_handle,
+          result,
+          "path10 start"))
+      {
+        return false;
+      }
+
+      if (checkCancel(goal_handle, result)) {
+        return false;
+      }
+
+      publishFeedback(goal_handle, 0.45, "computing Cartesian path10");
+
+      std::vector<geometry_msgs::msg::Pose> cartesian_waypoints(
+        waypoints.begin() + 1,
+        waypoints.end() - 1);
+
+      moveit_msgs::msg::RobotTrajectory cartesian_trajectory;
+      const double fraction =
+        move_group.computeCartesianPath(
+          cartesian_waypoints,
+          eef_step,
+          0.0,
+          cartesian_trajectory,
+          true,
+          nullptr);
+
+      RCLCPP_INFO(get_logger(), "Cartesian path fraction: %.2f%%", fraction * 100.0);
+
+      if (fraction < minimum_fraction) {
+        result->message =
+          "Cartesian fraction too low. fraction=" + std::to_string(fraction) +
+          ", required=" + std::to_string(minimum_fraction);
+        return false;
+      }
+
+      const auto current_state = move_group.getCurrentState(2.0);
+
+      if (!current_state) {
+        result->message = "Failed to get current robot state for retiming.";
+        return false;
+      }
+
+      robot_trajectory::RobotTrajectory retimed_trajectory(
+        move_group.getRobotModel(),
+        kGroupName);
+
+      retimed_trajectory.setRobotTrajectoryMsg(*current_state, cartesian_trajectory);
+
+      trajectory_processing::TimeOptimalTrajectoryGeneration totg;
+
+      if (!totg.computeTimeStamps(
+          retimed_trajectory,
+          velocity_scale,
+          acceleration_scale))
+      {
+        result->message = "Failed to retime Cartesian trajectory.";
+        return false;
+      }
+
+      retimed_trajectory.getRobotTrajectoryMsg(cartesian_trajectory);
+
+      guard_error.clear();
+      if (!abb4600_rws_cpp::validateTrajectoryGuard(
+          cartesian_trajectory,
+          get_logger(),
+          guard_error))
+      {
+        result->message = guard_error;
+        return false;
+      }
+
+      if (checkCancel(goal_handle, result)) {
+        return false;
+      }
+
+      publishFeedback(goal_handle, 0.70, "executing Cartesian path10");
+      if (!guardedExecuteTrajectory(
+          move_group,
+          cartesian_trajectory,
+          goal_handle,
+          result,
+          "Cartesian path10"))
+      {
+        return false;
+      }
+
+      if (!goal->return_to_start) {
+        publishFeedback(goal_handle, 1.0, "path10 finished without return_to_start");
+        result->message = "path10 finished without return_to_start.";
+        return true;
+      }
+
+      if (checkCancel(goal_handle, result)) {
+        return false;
+      }
+
+      publishFeedback(goal_handle, 0.85, "planning return to path10 start");
+      move_group.setStartStateToCurrentState();
+      move_group.setPoseTarget(waypoints.back(), "tool0");
+
+      moveit::planning_interface::MoveGroupInterface::Plan return_plan;
+      const auto return_plan_result = move_group.plan(return_plan);
+
+      if (return_plan_result != moveit::core::MoveItErrorCode::SUCCESS) {
+        result->message = "Failed to plan return_to_start.";
+        return false;
+      }
+
+      guard_error.clear();
+      if (!abb4600_rws_cpp::validateTrajectoryGuard(
+          return_plan.trajectory_,
+          get_logger(),
+          guard_error))
+      {
+        result->message = guard_error;
+        return false;
+      }
+
+      publishFeedback(goal_handle, 0.95, "executing return to path10 start");
+      if (!guardedExecutePlan(
+          move_group,
+          return_plan,
+          goal_handle,
+          result,
+          "return_to_start"))
+      {
+        return false;
+      }
+
+      publishFeedback(goal_handle, 1.0, "path10 finished with return_to_start");
+      result->message = "path10 finished with return_to_start.";
+      return true;
+    }
+    catch (const std::exception & e) {
+      result->message = std::string("Exception in runPath10: ") + e.what();
+      return false;
+    }
+  }
+};
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+
+  auto node = std::make_shared<RunRobotPathActionServer>();
+
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
+
+  rclcpp::shutdown();
+  return 0;
+}

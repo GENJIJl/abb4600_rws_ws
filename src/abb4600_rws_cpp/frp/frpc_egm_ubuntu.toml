@@ -1,0 +1,21 @@
+serverAddr = "120.55.45.142"  # frps 服务器公网 IP
+serverPort = 7000  # frps 服务端口
+loginFailExit = false  # 登录失败时不直接退出，便于网络恢复后继续重试
+
+[auth]
+method = "token"
+token = "token123456"
+
+[transport]
+dialServerTimeout = 3  # 连接服务端超时时间，单位秒
+dialServerKeepalive = 5  # TCP keepalive 探测间隔，单位秒
+tcpMuxKeepaliveInterval = 5  # 复用连接保活间隔，单位秒
+heartbeatInterval = 3  # frpc 心跳间隔，单位秒
+heartbeatTimeout = 10  # 心跳超时时间，单位秒
+
+[[proxies]]
+name = "abb_egm"  # EGM UDP 代理名称
+type = "udp"  # EGM 使用 UDP 通信
+localIP = "127.0.0.1"  # ros2_control 在本机监听 EGM UDP
+localPort = 6511  # Ubuntu 本地 EGM 端口，对应 abb_hardware_interface 的 egm_port
+remotePort = 14601  # frps 服务器开放给 RobotStudio 访问的公网 UDP 端口

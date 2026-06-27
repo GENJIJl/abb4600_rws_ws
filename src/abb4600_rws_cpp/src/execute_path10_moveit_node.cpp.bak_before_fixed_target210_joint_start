@@ -1,0 +1,269 @@
+#include <rclcpp/rclcpp.hpp>
+
+#include <geometry_msgs/msg/pose.hpp>
+#include <moveit/robot_trajectory/robot_trajectory.h>
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <moveit/trajectory_processing/time_optimal_trajectory_generation.h>
+#include <moveit_msgs/msg/robot_trajectory.hpp>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
+#include <array>
+#include <chrono>
+#include <string>
+#include <vector>
+
+namespace
+{
+struct RapidTarget
+{
+  std::string name;
+  std::array<double, 3> position_mm;
+  std::array<double, 4> rapid_quaternion;
+};
+
+geometry_msgs::msg::Pose toTool0Pose(const RapidTarget & target)
+{
+  tf2::Quaternion tcp_orientation(
+    target.rapid_quaternion[1],
+    target.rapid_quaternion[2],
+    target.rapid_quaternion[3],
+    target.rapid_quaternion[0]);
+  tcp_orientation.normalize();
+
+  const tf2::Vector3 tcp_position(
+    target.position_mm[0] / 1000.0,
+    target.position_mm[1] / 1000.0,
+    target.position_mm[2] / 1000.0);
+
+  const tf2::Transform base_to_tcp(tcp_orientation, tcp_position);
+
+  // RAPID 工具 GZ: PERS tooldata GZ := [TRUE,[[-75,0,216],[1,0,0,0]],...]
+  // robtarget 表示 GZ 的 TCP 位姿。MoveIt 规划组末端是 tool0，因此要反推出 tool0 位姿。
+  const tf2::Transform tool0_to_gz_tcp(tf2::Quaternion::getIdentity(), tf2::Vector3(-0.075, 0.0, 0.216));
+  const tf2::Transform base_to_tool0 = base_to_tcp * tool0_to_gz_tcp.inverse();
+
+  geometry_msgs::msg::Pose pose;
+  pose.position.x = base_to_tool0.getOrigin().x();
+  pose.position.y = base_to_tool0.getOrigin().y();
+  pose.position.z = base_to_tool0.getOrigin().z();
+  pose.orientation = tf2::toMsg(base_to_tool0.getRotation());
+  return pose;
+}
+
+std::vector<RapidTarget> path10Targets()
+{
+  return {
+    {"Target_210", {245.832758885, -1339.12895635, 777.464240183},
+      {0.478400558, -0.521495507, 0.506705506, -0.492366604}},
+    {"Target_30", {1619.584450471, -378.494495066, 655.666637316},
+      {0.49193704, -0.507171975, 0.521041538, -0.478842618}},
+    {"Target_40", {1619.584424127, 85.971895363, 655.66656862},
+      {0.49193703, -0.507171938, 0.521041646, -0.478842549}},
+    {"Target_50", {1621.091434395, 80.467737853, 681.868711263},
+      {0.569617259, -0.405851496, 0.603317837, -0.383181849}},
+    {"Target_60", {1542.091373439, 84.999617909, 658.660023036},
+      {0.569617231, -0.405851529, 0.60331785, -0.383181835}},
+    {"Target_70", {1540.6423709, 98.101948859, 633.454361049},
+      {0.495114067, -0.503691567, 0.524407042, -0.475556642}},
+    {"Target_80", {1555.131448251, 98.101972671, 815.902147503},
+      {0.495113696, -0.503691987, 0.524406627, -0.475557042}},
+    {"Target_90", {1555.131420108, 98.101992456, 893.488734831},
+      {0.495113721, -0.503691945, 0.524406672, -0.475557011}},
+    {"Target_100", {1543.836348907, 96.610449733, 893.488864478},
+      {0.495113724, -0.503691952, 0.524406637, -0.475557039}},
+    {"Target_110", {1542.309350856, 92.33936431, 900.547870765},
+      {0.402000238, -0.589419901, 0.425784129, -0.556496059}},
+    {"Target_120", {1542.309355626, 41.795477908, 911.806915943},
+      {0.401999776, -0.58942009, 0.425783845, -0.556496411}},
+    {"Target_130", {1542.309406172, 14.649335824, 936.758778901},
+      {0.40199986, -0.589420025, 0.425783937, -0.556496349}},
+    {"Target_140", {1542.309394052, -50.086859014, 991.490022432},
+      {0.401999863, -0.589420062, 0.425783863, -0.556496364}},
+    {"Target_150", {1542.309389906, -125.338150744, 1030.917991469},
+      {0.4019997, -0.58942013, 0.425783821, -0.556496441}},
+    {"Target_160", {1543.538547361, -121.570669946, 1052.290846321},
+      {0.478400645, -0.521496192, 0.506704746, -0.492366575}},
+    {"Target_170", {1543.538324064, -119.123263464, 1125.30806886},
+      {0.478400532, -0.521496219, 0.50670467, -0.492366734}},
+    {"Target_180", {1543.538325459, -250.366397395, 1145.547068237},
+      {0.478400608, -0.521496077, 0.506704704, -0.492366777}},
+    {"Target_190", {1543.538314403, -444.694603495, 1144.412018467},
+      {0.478400753, -0.521495973, 0.50670489, -0.492366554}},
+    {"Target_200", {1266.543390848, -444.69461636, 742.986355055},
+      {0.478400777, -0.521495921, 0.506704892, -0.492366584}},
+    {"Target_210", {245.832758885, -1339.12895635, 777.464240183},
+      {0.478400558, -0.521495507, 0.506705506, -0.492366604}},
+  };
+}
+
+double getOrDeclareDouble(
+  const rclcpp::Node::SharedPtr & node, const std::string & name, const double default_value)
+{
+  if (!node->has_parameter(name)) {
+    return node->declare_parameter<double>(name, default_value);
+  }
+
+  double value = default_value;
+  node->get_parameter(name, value);
+  return value;
+}
+
+bool getOrDeclareBool(
+  const rclcpp::Node::SharedPtr & node, const std::string & name, const bool default_value)
+{
+  if (!node->has_parameter(name)) {
+    return node->declare_parameter<bool>(name, default_value);
+  }
+
+  bool value = default_value;
+  node->get_parameter(name, value);
+  return value;
+}
+}  // namespace
+
+int main(int argc, char * argv[])
+{
+  rclcpp::init(argc, argv);
+
+  auto node = std::make_shared<rclcpp::Node>(
+    "execute_path10_moveit_node",
+    rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true));
+
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
+  std::thread spinner([&executor]() { executor.spin(); });
+
+  static constexpr char kGroupName[] = "manipulator";
+  moveit::planning_interface::MoveGroupInterface move_group(node, kGroupName);
+  move_group.setEndEffectorLink("tool0");
+  move_group.setPoseReferenceFrame("base_link");
+  const double velocity_scale = getOrDeclareDouble(node, "velocity_scale", 0.02);
+  const double acceleration_scale = getOrDeclareDouble(node, "acceleration_scale", 0.02);
+  move_group.setMaxVelocityScalingFactor(velocity_scale);
+  move_group.setMaxAccelerationScalingFactor(acceleration_scale);
+  move_group.setPlanningTime(getOrDeclareDouble(node, "planning_time", 10.0));
+
+  const auto targets = path10Targets();
+  RCLCPP_INFO(node->get_logger(), "准备执行 Path_10，共 %zu 个 RAPID 目标点。", targets.size());
+
+  std::vector<geometry_msgs::msg::Pose> waypoints;
+  waypoints.reserve(targets.size());
+  for (const auto & target : targets) {
+    waypoints.push_back(toTool0Pose(target));
+  }
+
+  move_group.setStartStateToCurrentState();
+  move_group.setPoseTarget(waypoints.front(), "tool0");
+
+  moveit::planning_interface::MoveGroupInterface::Plan first_plan;
+  const auto first_plan_result = move_group.plan(first_plan);
+  if (first_plan_result != moveit::core::MoveItErrorCode::SUCCESS) {
+    RCLCPP_ERROR(node->get_logger(), "无法规划到 Path_10 起点 Target_210。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
+  }
+
+  RCLCPP_INFO(node->get_logger(), "正在运动到 Path_10 起点 Target_210。");
+  if (move_group.execute(first_plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+    RCLCPP_ERROR(node->get_logger(), "执行起点轨迹失败。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
+  }
+
+  std::vector<geometry_msgs::msg::Pose> cartesian_waypoints(waypoints.begin() + 1, waypoints.end() - 1);
+  moveit_msgs::msg::RobotTrajectory cartesian_trajectory;
+  const double eef_step = getOrDeclareDouble(node, "eef_step", 0.02);
+  const double fraction =
+    move_group.computeCartesianPath(
+      cartesian_waypoints,
+      eef_step,
+      0.0,
+      cartesian_trajectory,
+      true,
+      nullptr);
+
+  RCLCPP_INFO(node->get_logger(), "笛卡尔路径规划完成比例：%.2f%%", fraction * 100.0);
+  if (fraction < getOrDeclareDouble(node, "minimum_cartesian_fraction", 0.90)) {
+    RCLCPP_ERROR(node->get_logger(), "笛卡尔路径规划比例不足，停止执行。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
+  }
+
+  robot_trajectory::RobotTrajectory retimed_trajectory(move_group.getRobotModel(), kGroupName);
+  const auto current_state = move_group.getCurrentState(2.0);
+  if (!current_state) {
+    RCLCPP_ERROR(node->get_logger(), "无法读取当前机器人状态，不能给笛卡尔轨迹重新生成时间戳。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
+  }
+  retimed_trajectory.setRobotTrajectoryMsg(*current_state, cartesian_trajectory);
+
+  trajectory_processing::TimeOptimalTrajectoryGeneration time_parameterization;
+  if (!time_parameterization.computeTimeStamps(
+        retimed_trajectory, velocity_scale, acceleration_scale))
+  {
+    RCLCPP_ERROR(node->get_logger(), "笛卡尔轨迹时间参数化失败。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
+  }
+  retimed_trajectory.getRobotTrajectoryMsg(cartesian_trajectory);
+
+  RCLCPP_INFO(node->get_logger(), "正在执行 Path_10 笛卡尔轨迹。");
+  if (move_group.execute(cartesian_trajectory) != moveit::core::MoveItErrorCode::SUCCESS) {
+    RCLCPP_ERROR(node->get_logger(), "执行 Path_10 笛卡尔轨迹失败。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
+  }
+
+  if (!getOrDeclareBool(node, "return_to_target_210", true)) {
+    RCLCPP_INFO(node->get_logger(), "已按参数设置跳过自动回到 Target_210，避免回程穿过 RobotStudio 场景物体。");
+    RCLCPP_INFO(node->get_logger(), "Path_10 执行完成。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 0;
+  }
+
+  move_group.setStartStateToCurrentState();
+  move_group.setPoseTarget(waypoints.back(), "tool0");
+
+  moveit::planning_interface::MoveGroupInterface::Plan return_plan;
+  const auto return_plan_result = move_group.plan(return_plan);
+  if (return_plan_result != moveit::core::MoveItErrorCode::SUCCESS) {
+    RCLCPP_ERROR(node->get_logger(), "无法规划回 Path_10 起点 Target_210。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
+  }
+
+  RCLCPP_INFO(node->get_logger(), "正在回到 Path_10 起点 Target_210。");
+  if (move_group.execute(return_plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+    RCLCPP_ERROR(node->get_logger(), "执行回到 Target_210 的轨迹失败。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
+  }
+
+  RCLCPP_INFO(node->get_logger(), "Path_10 执行完成。");
+  executor.cancel();
+  spinner.join();
+  rclcpp::shutdown();
+  return 0;
+}

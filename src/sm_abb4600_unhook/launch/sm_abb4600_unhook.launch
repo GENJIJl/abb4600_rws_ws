@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="sm_abb4600_unhook" exec="sm_abb4600_unhook_node" name="sm_abb4600_unhook" output="screen">
+    <param from="$(find-pkg-share sm_abb4600_unhook)/config/sm_abb4600_unhook_config.yaml" />
+  </node>
+</launch>

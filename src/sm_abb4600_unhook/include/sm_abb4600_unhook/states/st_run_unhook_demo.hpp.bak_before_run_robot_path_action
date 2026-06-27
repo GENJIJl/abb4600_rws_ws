@@ -1,0 +1,93 @@
+#pragma once
+
+#include <cstdlib>
+#include <string>
+
+#include <boost/statechart/event.hpp>
+#include <boost/mpl/list.hpp>
+
+#include <rclcpp/rclcpp.hpp>
+#include <smacc2/smacc.hpp>
+
+#include "sm_abb4600_unhook/sm_abb4600_unhook.hpp"
+#include "sm_abb4600_unhook/states/st_done.hpp"
+#include "sm_abb4600_unhook/states/st_error.hpp"
+#include "sm_abb4600_unhook/states/st_wait_return_home.hpp"
+
+namespace sm_abb4600_unhook
+{
+
+namespace sc = boost::statechart;
+namespace mpl = boost::mpl;
+using smacc2::Transition;
+
+struct EvUnhookPathSucceeded : sc::event<EvUnhookPathSucceeded> {};
+struct EvUnhookPathFailed : sc::event<EvUnhookPathFailed> {};
+
+class StRunUnhookDemo : public smacc2::SmaccState<StRunUnhookDemo, SmAbb4600Unhook>
+{
+public:
+  using SmaccState::SmaccState;
+
+  typedef mpl::list<
+    Transition<
+      EvUnhookPathSucceeded,
+      StWaitReturnHome,
+      smacc2::default_transition_tags::SUCCESS
+    >,
+    Transition<
+      EvUnhookPathFailed,
+      StError,
+      smacc2::default_transition_tags::ABORT
+    >
+  > reactions;
+
+  static void staticConfigure()
+  {
+  }
+
+  void runtimeConfigure()
+  {
+  }
+
+  void onEntry()
+  {
+    RCLCPP_INFO(getLogger(), "[StRunUnhookDemo] Starting ABB unhook Path10...");
+
+    const std::string cmd =
+      "bash -lc '"
+      "cd \"$HOME/abb4600_rws_ws\" && "
+      "source /opt/ros/humble/setup.bash && "
+      "source install/setup.bash && "
+      "export RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_cyclonedds_cpp} && "
+      "ros2 launch abb4600_rws_cpp execute_path10_moveit.launch.py "
+      "velocity_scale:=0.50 "
+      "acceleration_scale:=0.50 "
+      "planning_time:=60.0 "
+      "eef_step:=0.02 "
+      "minimum_cartesian_fraction:=0.50"
+      "'";
+
+    RCLCPP_INFO(getLogger(), "[StRunUnhookDemo] Command: %s", cmd.c_str());
+
+    int ret = std::system(cmd.c_str());
+
+    if (ret == 0)
+    {
+      RCLCPP_INFO(getLogger(), "[StRunUnhookDemo] Path10 finished successfully.");
+      this->postEvent<EvUnhookPathSucceeded>();
+    }
+    else
+    {
+      RCLCPP_ERROR(getLogger(), "[StRunUnhookDemo] Path10 failed. return code = %d", ret);
+      this->postEvent<EvUnhookPathFailed>();
+    }
+  }
+
+  void onExit()
+  {
+    RCLCPP_INFO(getLogger(), "[StRunUnhookDemo] Leaving state.");
+  }
+};
+
+}  // namespace sm_abb4600_unhook

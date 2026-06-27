@@ -1,0 +1,30 @@
+#pragma once
+
+#include <smacc2/smacc.hpp>
+
+#include "sm_abb4600_unhook/orthogonals/or_timer.hpp"
+
+namespace sm_abb4600_unhook
+{
+
+class StIdle;
+
+struct SmAbb4600Unhook
+: public smacc2::SmaccStateMachineBase<SmAbb4600Unhook, StIdle>
+{
+  using SmaccStateMachineBase::SmaccStateMachineBase;
+
+  void onInitialize() override
+  {
+    this->createOrthogonal<OrTimer>();
+    this->setGlobalSMData("initialization", true);
+  }
+};
+
+}  // namespace sm_abb4600_unhook
+
+#include "sm_abb4600_unhook/states/st_idle.hpp"
+#include "sm_abb4600_unhook/states/st_wait_system_ready.hpp"
+#include "sm_abb4600_unhook/states/st_run_unhook_demo.hpp"
+#include "sm_abb4600_unhook/states/st_done.hpp"
+#include "sm_abb4600_unhook/states/st_error.hpp"

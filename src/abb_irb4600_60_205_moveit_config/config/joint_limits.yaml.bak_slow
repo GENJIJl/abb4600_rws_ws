@@ -1,0 +1,34 @@
+# joint_limits.yaml 允许按需覆盖或补充 URDF 中指定的动力学属性
+# 可以通过 [max_position, min_position, max_velocity, max_acceleration] 修改具体关节属性
+# 可以通过 [has_velocity_limits, has_acceleration_limits] 关闭对应关节限制
+joint_limits:
+  joint_1:
+    has_velocity_limits: true
+    max_velocity: 3.054
+    has_acceleration_limits: true
+    max_acceleration: 5.0
+  joint_2:
+    has_velocity_limits: true
+    max_velocity: 3.054
+    has_acceleration_limits: true
+    max_acceleration: 5.0
+  joint_3:
+    has_velocity_limits: true
+    max_velocity: 3.054
+    has_acceleration_limits: true
+    max_acceleration: 5.0
+  joint_4:
+    has_velocity_limits: true
+    max_velocity: 4.363
+    has_acceleration_limits: true
+    max_acceleration: 5.0
+  joint_5:
+    has_velocity_limits: true
+    max_velocity: 4.363
+    has_acceleration_limits: true
+    max_acceleration: 5.0
+  joint_6:
+    has_velocity_limits: true
+    max_velocity: 6.283
+    has_acceleration_limits: true
+    max_acceleration: 5.0

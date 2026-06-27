@@ -1,0 +1,89 @@
+#pragma once
+
+#include <cstdlib>
+#include <string>
+
+#include <boost/mpl/list.hpp>
+#include <boost/statechart/event.hpp>
+
+#include <rclcpp/rclcpp.hpp>
+#include <smacc2/smacc.hpp>
+
+#include "sm_abb4600_unhook/sm_abb4600_unhook.hpp"
+#include "sm_abb4600_unhook/states/st_done.hpp"
+#include "sm_abb4600_unhook/states/st_error.hpp"
+
+namespace sm_abb4600_unhook
+{
+
+namespace sc = boost::statechart;
+namespace mpl = boost::mpl;
+
+using smacc2::Transition;
+
+struct EvReturnHomeSucceeded : sc::event<EvReturnHomeSucceeded> {};
+struct EvReturnHomeFailed : sc::event<EvReturnHomeFailed> {};
+
+class StReturnHome : public smacc2::SmaccState<StReturnHome, SmAbb4600Unhook>
+{
+public:
+  using SmaccState::SmaccState;
+
+  typedef mpl::list<
+    Transition<EvReturnHomeSucceeded, StDone, smacc2::default_transition_tags::SUCCESS>,
+    Transition<EvReturnHomeFailed, StError, smacc2::default_transition_tags::ABORT>
+  > reactions;
+
+  static void staticConfigure()
+  {
+  }
+
+  void runtimeConfigure()
+  {
+  }
+
+  void onEntry()
+  {
+    RCLCPP_INFO(getLogger(), "[StReturnHome] Returning robot to home position...");
+
+    const std::string cmd =
+      "bash -lc '"
+      "cd \"$HOME/abb4600_rws_ws\" && "
+      "unset ROS_DOMAIN_ID && "
+      "source /opt/ros/humble/setup.bash && "
+      "source install/setup.bash && "
+      "export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp && "
+      "ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory "
+      "control_msgs/action/FollowJointTrajectory "
+      "\"{trajectory: {"
+      "joint_names: [\\\"joint_1\\\", \\\"joint_2\\\", \\\"joint_3\\\", \\\"joint_4\\\", \\\"joint_5\\\", \\\"joint_6\\\"], "
+      "points: [{"
+      "positions: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "
+      "velocities: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "
+      "time_from_start: {sec: 35, nanosec: 0}"
+      "}]}}\""
+      "'";
+
+    RCLCPP_INFO(getLogger(), "[StReturnHome] Command: %s", cmd.c_str());
+
+    int ret = std::system(cmd.c_str());
+
+    if (ret == 0)
+    {
+      RCLCPP_INFO(getLogger(), "[StReturnHome] Robot returned home successfully.");
+      this->postEvent<EvReturnHomeSucceeded>();
+    }
+    else
+    {
+      RCLCPP_ERROR(getLogger(), "[StReturnHome] Return home failed. return code = %d", ret);
+      this->postEvent<EvReturnHomeFailed>();
+    }
+  }
+
+  void onExit()
+  {
+    RCLCPP_INFO(getLogger(), "[StReturnHome] Leaving state.");
+  }
+};
+
+}  // namespace sm_abb4600_unhook

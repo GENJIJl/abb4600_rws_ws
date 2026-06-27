@@ -1,0 +1,13 @@
+string path_name
+float64 velocity_scale
+float64 acceleration_scale
+float64 planning_time
+float64 eef_step
+float64 minimum_cartesian_fraction
+bool return_to_start
+---
+bool success
+string message
+---
+float64 progress
+string current_stage
