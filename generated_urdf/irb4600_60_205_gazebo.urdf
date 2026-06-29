@@ -357,4 +357,43 @@
       <parameters>/home/gen/abb4600_rws_ws/src/abb4600_gazebo/config/gazebo_controllers.yaml</parameters>
     </plugin>
   </gazebo>
+
+  <!-- End unhook tool attached to robot tool0 -->
+
+
+  <link name="unhook_tool_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+    </inertial>
+
+    <!-- L 型钩子：上圆盘面连接到机械臂 tool0 -->
+    <visual name="unhook_tool_mesh_visual">
+      <origin xyz="-0.001508 -0.000070 -0.024000" rpy="3.14159 0 0"/>
+      <geometry>
+        <mesh filename="file:///home/gen/abb4600_rws_ws/src/abb4600_gazebo/models/unhook_tool/meshes/unhook_tool.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="tool_gray">
+        <color rgba="0.55 0.55 0.55 1"/>
+      </material>
+    </visual>
+
+    <collision name="unhook_tool_collision">
+      <origin xyz="-0.001508 -0.000070 -0.024000" rpy="3.14159 0 0"/>
+      <geometry>
+        <mesh filename="file:///home/gen/abb4600_rws_ws/src/abb4600_gazebo/models/unhook_tool/meshes/unhook_tool.stl"
+              scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+
+  <joint name="tool0_to_unhook_tool" type="fixed">
+    <parent link="tool0"/>
+    <child link="unhook_tool_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
 </robot>
