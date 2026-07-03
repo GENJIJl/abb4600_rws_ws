@@ -22,6 +22,16 @@ find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 
+
+add_executable(move_to_target_pose src/move_to_target_pose.cpp)
+
+ament_target_dependencies(move_to_target_pose
+  rclcpp
+  geometry_msgs
+  moveit_ros_planning_interface
+  moveit_msgs
+)
+
 add_executable(start_fixed_path_node src/start_fixed_path_node.cpp)
 ament_target_dependencies(start_fixed_path_node rclcpp std_msgs)
 target_link_libraries(start_fixed_path_node CURL::libcurl)
@@ -71,7 +81,15 @@ install(TARGETS
   start_fixed_path_node
   DESTINATION lib/${PROJECT_NAME}
 )
+install(TARGETS
+  move_to_target_pose
+  DESTINATION lib/${PROJECT_NAME}
+)
 
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
 install(PROGRAMS
   scripts/egm_joint6_sweep_test.py
   scripts/tiny_joint1_test.py
@@ -167,6 +185,11 @@ ament_target_dependencies(singularity_aware_target_demo_node
 
 install(TARGETS
   singularity_aware_target_demo_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/return_to_p10.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

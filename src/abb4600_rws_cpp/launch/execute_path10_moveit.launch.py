@@ -5,6 +5,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from moveit_configs_utils import MoveItConfigsBuilder
 
 
@@ -15,6 +16,8 @@ def launch_setup(context, *args, **kwargs):
     eef_step = LaunchConfiguration("eef_step")
     minimum_cartesian_fraction = LaunchConfiguration("minimum_cartesian_fraction")
     return_to_target_210 = LaunchConfiguration("return_to_target_210")
+    skip_start_execute = LaunchConfiguration("skip_start_execute")
+    use_sim_time = LaunchConfiguration("use_sim_time")
 
     support_package = "abb_irb4600_support"
     moveit_config_package = "abb_irb4600_60_205_moveit_config"
@@ -70,12 +73,14 @@ def launch_setup(context, *args, **kwargs):
             parameters=[
                 moveit_config.to_dict(),
                 {
-                    "velocity_scale": velocity_scale,
-                    "acceleration_scale": acceleration_scale,
-                    "planning_time": planning_time,
-                    "eef_step": eef_step,
-                    "minimum_cartesian_fraction": minimum_cartesian_fraction,
-                    "return_to_target_210": return_to_target_210,
+                    "use_sim_time": ParameterValue(use_sim_time, value_type=bool),
+                    "velocity_scale": ParameterValue(velocity_scale, value_type=float),
+                    "acceleration_scale": ParameterValue(acceleration_scale, value_type=float),
+                    "planning_time": ParameterValue(planning_time, value_type=float),
+                    "eef_step": ParameterValue(eef_step, value_type=float),
+                    "minimum_cartesian_fraction": ParameterValue(minimum_cartesian_fraction, value_type=float),
+                    "return_to_target_210": ParameterValue(return_to_target_210, value_type=bool),
+                    "skip_start_execute": ParameterValue(skip_start_execute, value_type=bool),
                 },
             ],
         )
@@ -85,12 +90,14 @@ def launch_setup(context, *args, **kwargs):
 def generate_launch_description():
     return LaunchDescription(
         [
+            DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("velocity_scale", default_value="0.02"),
             DeclareLaunchArgument("acceleration_scale", default_value="0.02"),
             DeclareLaunchArgument("planning_time", default_value="10.0"),
             DeclareLaunchArgument("eef_step", default_value="0.02"),
             DeclareLaunchArgument("minimum_cartesian_fraction", default_value="0.90"),
             DeclareLaunchArgument("return_to_target_210", default_value="true"),
+            DeclareLaunchArgument("skip_start_execute", default_value="false"),
             OpaqueFunction(function=launch_setup),
         ]
     )

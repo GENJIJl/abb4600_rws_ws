@@ -1,0 +1,441 @@
+#include <chrono>
+#include <cmath>
+#include <fstream>
+#include <functional>
+#include <iomanip>
+#include <memory>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <boost/mpl/list.hpp>
+#include <boost/statechart/event.hpp>
+
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp_action/rclcpp_action.hpp>
+
+#include <smacc2/smacc.hpp>
+
+#include <std_msgs/msg/empty.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
+#include <sensor_msgs/msg/joint_state.hpp>
+
+#include <abb4600_interfaces/action/run_robot_path.hpp>
+#include <control_msgs/action/follow_joint_trajectory.hpp>
+
+using namespace std::chrono_literals;
+namespace sc = boost::statechart;
+namespace mpl = boost::mpl;
+
+namespace sm_abb4600_unhook
+{
+
+static rclcpp::Logger logger()
+{
+  return rclcpp::get_logger("sm_abb4600_unhook_node");
+}
+
+class StIdle;
+class StWaitSystemReady;
+class StSafetyCheck;
+class StWaitOperatorConfirm;
+class StReturnP10;
+class StWaitManualTarget;
+class StMoveToManualTarget;
+
+class StExecuteGuiji2TailPath : public smacc2::SmaccState<StExecuteGuiji2TailPath, SmAbb4600Unhook>
+{
+public:
+  using SmaccState::SmaccState;
+
+  typedef mpl::list<
+    smacc2::Transition<EvActionSucceeded, StWaitManualVerify>,
+    smacc2::Transition<EvActionFailed, StError>
+  > reactions;
+
+  struct TailWaypoint
+  {
+    std::string name;
+    double x_mm;
+    double y_mm;
+    double z_mm;
+    double qx;
+    double qy;
+    double qz;
+    double qw;
+  };
+
+  void onEntry()
+  {
+    auto node = this->getNode();
+
+    action_client_ = rclcpp_action::create_client<RunRobotPath>(
+      node,
+      "/abb4600/run_robot_path");
+
+    // guiji2 从 p710 后面的摘钩轨迹。
+    // 这些点是 base_link 下 Tooldata_HookM TCP 坐标，单位 mm，四元数顺序 qx,qy,qz,qw。
+    waypoints_ = {
+      {"p630", 1470.160, 771.505, 1026.320,  0.396841, 0.692521,  0.285370, 0.530561},
+      {"p530", 1454.230, 607.805, 1069.730,  0.424200, 0.668560,  0.275173, 0.545308},
+      {"p730", 1467.470, 576.245, 1083.340,  0.413572, 0.685882,  0.311378, 0.511436},
+      {"p650", 1465.250, 536.625, 1243.470,  0.194288, 0.738989,  0.097583, 0.637672},
+      {"p660", 1431.260, 428.435, 1465.360,  0.072062, 0.712129, -0.045830, 0.696835},
+      {"p570", 1470.940, 640.475, 1164.000,  0.036994, 0.752846, -0.130454, 0.644078},
+      {"p660", 1431.260, 428.435, 1465.360,  0.072062, 0.712129, -0.045830, 0.696835},
+      {"p680", 1498.270, 587.455, 1226.930,  0.015250, 0.763039, -0.054165, 0.643899},
+      {"p720", 1584.120, 813.605, 1109.400, -0.059987, 0.769460, -0.052134, 0.633731},
+      {"p700", 1617.800, 764.505,  866.320, -0.078016, 0.808244, -0.092034, 0.576354},
+      {"p590",  896.420, 373.405,  378.760, -0.151488, 0.862476, -0.176653, 0.449421}
+    };
+
+    current_index_ = 0;
+
+    RCLCPP_WARN(
+      logger(),
+      "[StExecuteGuiji2TailPath] 开始执行 guiji2 后续摘钩轨迹，共 %zu 个点：p630 -> ... -> p590",
+      waypoints_.size());
+
+    RCLCPP_WARN(logger(), "[StExecuteGuiji2TailPath] TAIL_WAIT_PATCH: 已到达 p710，先暂停等待人工命令。");
+    RCLCPP_WARN(logger(), "继续执行后续摘钩轨迹：ros2 topic pub -1 /abb4600_unhook/start_guiji2_tail std_msgs/msg/Empty \"{}\"");
+
+    start_tail_sub_ = node->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/start_guiji2_tail",
+      rclcpp::QoS(10),
+      [this](std_msgs::msg::Empty::SharedPtr)
+      {
+        if (tail_started_) {
+          return;
+        }
+
+        tail_started_ = true;
+        RCLCPP_WARN(logger(), "[StExecuteGuiji2TailPath] 收到 start_guiji2_tail，开始执行 guiji2 后续摘钩轨迹。");
+        executeNextWaypoint();
+      });
+  }
+
+private:
+  rclcpp_action::Client<RunRobotPath>::SharedPtr action_client_;
+  std::vector<TailWaypoint> waypoints_;
+  size_t current_index_{0};
+
+  std::string makePathName(const TailWaypoint & wp)
+  {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(3);
+    oss << "safe_tcp_base_mm:"
+        << wp.x_mm << ","
+        << wp.y_mm << ","
+        << wp.z_mm << ","
+        << std::setprecision(6)
+        << wp.qx << ","
+        << wp.qy << ","
+        << wp.qz << ","
+        << wp.qw;
+    return oss.str();
+  }
+
+  void executeNextWaypoint()
+  {
+    if (current_index_ >= waypoints_.size()) {
+      RCLCPP_WARN(logger(), "[StExecuteGuiji2TailPath] guiji2 后续摘钩轨迹执行完成。");
+      this->postEvent<EvActionSucceeded>();
+      return;
+    }
+
+    const auto wp = waypoints_[current_index_];
+    const std::string path_name = makePathName(wp);
+
+    RCLCPP_WARN(
+      logger(),
+      "[StExecuteGuiji2TailPath] [%zu/%zu] 执行 %s: %s",
+      current_index_ + 1,
+      waypoints_.size(),
+      wp.name.c_str(),
+      path_name.c_str());
+
+    sendGoal(path_name, wp.name);
+  }
+
+  void sendGoal(const std::string & path_name, const std::string & point_name)
+  {
+    if (!action_client_->wait_for_action_server(5s)) {
+      auto & sm = this->context<SmAbb4600Unhook>();
+      sm.setLastError("guiji2 tail failed: /abb4600/run_robot_path action server not available.");
+      RCLCPP_ERROR(logger(), "[StExecuteGuiji2TailPath] action server not available");
+      this->postEvent<EvActionFailed>();
+      return;
+    }
+
+    auto goal = makeGoal(path_name);
+
+    auto options = rclcpp_action::Client<RunRobotPath>::SendGoalOptions();
+
+    options.goal_response_callback =
+      [this, point_name](std::shared_ptr<GoalHandleRunRobotPath> goal_handle)
+      {
+        if (!goal_handle) {
+          auto & sm = this->context<SmAbb4600Unhook>();
+          sm.setLastError("guiji2 tail failed: goal rejected at " + point_name);
+          RCLCPP_ERROR(logger(), "[StExecuteGuiji2TailPath] %s goal rejected", point_name.c_str());
+          this->postEvent<EvActionFailed>();
+          return;
+        }
+
+        RCLCPP_WARN(logger(), "[StExecuteGuiji2TailPath] %s goal accepted", point_name.c_str());
+      };
+
+    options.feedback_callback =
+      [point_name](
+        GoalHandleRunRobotPath::SharedPtr,
+        const std::shared_ptr<const RunRobotPath::Feedback> fb)
+      {
+        RCLCPP_INFO(
+          logger(),
+          "[StExecuteGuiji2TailPath feedback] %s %.2f %s",
+          point_name.c_str(),
+          fb->progress,
+          fb->current_stage.c_str());
+      };
+
+    options.result_callback =
+      [this, point_name](const GoalHandleRunRobotPath::WrappedResult & result)
+      {
+        auto & sm = this->context<SmAbb4600Unhook>();
+
+        if (result.code != rclcpp_action::ResultCode::SUCCEEDED || !result.result) {
+          sm.setLastError("guiji2 tail failed: action did not finish with SUCCEEDED at " + point_name);
+          RCLCPP_ERROR(logger(), "[StExecuteGuiji2TailPath] %s action failed", point_name.c_str());
+          this->postEvent<EvActionFailed>();
+          return;
+        }
+
+        if (!result.result->success) {
+          sm.setLastError("guiji2 tail failed at " + point_name + ": " + result.result->message);
+          RCLCPP_ERROR(
+            logger(),
+            "[StExecuteGuiji2TailPath] %s failed: %s",
+            point_name.c_str(),
+            result.result->message.c_str());
+          this->postEvent<EvActionFailed>();
+          return;
+        }
+
+        RCLCPP_WARN(
+          logger(),
+          "[StExecuteGuiji2TailPath] %s succeeded: %s",
+          point_name.c_str(),
+          result.result->message.c_str());
+
+        current_index_++;
+        executeNextWaypoint();
+      };
+
+    action_client_->async_send_goal(goal, options);
+  }
+};
+
+class StWaitManualVerify : public smacc2::SmaccState<StWaitManualVerify, SmAbb4600Unhook>
+{
+public:
+  using SmaccState::SmaccState;
+
+  typedef mpl::list<
+    smacc2::Transition<EvUnhookSuccess, StWaitReturnHome>,
+    smacc2::Transition<EvUnhookFailed, StWaitManualTarget>
+  > reactions;
+
+  void onEntry()
+  {
+    RCLCPP_WARN(logger(), "[StWaitManualVerify] 等待人工确认摘钩结果");
+    RCLCPP_WARN(logger(), "成功：ros2 topic pub -1 /abb4600_unhook/unhook_success std_msgs/msg/Empty \"{}\"");
+    RCLCPP_WARN(logger(), "失败：ros2 topic pub -1 /abb4600_unhook/unhook_failed std_msgs/msg/Empty \"{}\"");
+
+    auto node = this->getNode();
+
+    success_sub_ = node->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/unhook_success", rclcpp::QoS(10),
+      [this](std_msgs::msg::Empty::SharedPtr)
+      {
+        this->postEvent<EvUnhookSuccess>();
+      });
+
+    failed_sub_ = node->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/unhook_failed", rclcpp::QoS(10),
+      [this](std_msgs::msg::Empty::SharedPtr)
+      {
+        this->postEvent<EvUnhookFailed>();
+      });
+  }
+
+private:
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr success_sub_;
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr failed_sub_;
+};
+
+class StWaitReturnHome : public smacc2::SmaccState<StWaitReturnHome, SmAbb4600Unhook>
+{
+public:
+  using SmaccState::SmaccState;
+
+  typedef mpl::list<
+    smacc2::Transition<EvReturnHome, StReturnHome>,
+    smacc2::Transition<EvSkipReturnHome, StDone>
+  > reactions;
+
+  void onEntry()
+  {
+    RCLCPP_WARN(logger(), "[StWaitReturnHome] 等待是否回位");
+    RCLCPP_WARN(logger(), "回位：ros2 topic pub -1 /abb4600_unhook/return_home std_msgs/msg/Empty \"{}\"");
+    RCLCPP_WARN(logger(), "跳过：ros2 topic pub -1 /abb4600_unhook/skip_return_home std_msgs/msg/Empty \"{}\"");
+
+    auto node = this->getNode();
+
+    return_home_sub_ = node->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/return_home", rclcpp::QoS(10),
+      [this](std_msgs::msg::Empty::SharedPtr)
+      {
+        this->postEvent<EvReturnHome>();
+      });
+
+    skip_sub_ = node->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/skip_return_home", rclcpp::QoS(10),
+      [this](std_msgs::msg::Empty::SharedPtr)
+      {
+        this->postEvent<EvSkipReturnHome>();
+      });
+  }
+
+private:
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr return_home_sub_;
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr skip_sub_;
+};
+
+class StReturnHome : public smacc2::SmaccState<StReturnHome, SmAbb4600Unhook>
+{
+public:
+  using SmaccState::SmaccState;
+
+  typedef mpl::list<
+    smacc2::Transition<EvActionSucceeded, StDone>,
+    smacc2::Transition<EvActionFailed, StError>
+  > reactions;
+
+  void onEntry()
+  {
+    RCLCPP_WARN(logger(), "[StReturnHome] 调用 return_home");
+
+    auto node = this->getNode();
+    action_client_ = rclcpp_action::create_client<RunRobotPath>(node, "/abb4600/run_robot_path");
+
+    if (!action_client_->wait_for_action_server(5s)) {
+      auto & sm = this->context<SmAbb4600Unhook>();
+      sm.setLastError("return_home failed: action server not available.");
+      this->postEvent<EvActionFailed>();
+      return;
+    }
+
+    auto goal = makeGoal("return_home");
+    auto options = rclcpp_action::Client<RunRobotPath>::SendGoalOptions();
+
+    options.result_callback =
+      [this](const GoalHandleRunRobotPath::WrappedResult & result)
+      {
+        auto & sm = this->context<SmAbb4600Unhook>();
+
+        if (result.code != rclcpp_action::ResultCode::SUCCEEDED || !result.result) {
+          sm.setLastError("return_home failed: action did not finish with SUCCEEDED.");
+          this->postEvent<EvActionFailed>();
+          return;
+        }
+
+        if (!result.result->success) {
+          sm.setLastError("return_home failed: " + result.result->message);
+          this->postEvent<EvActionFailed>();
+          return;
+        }
+
+        RCLCPP_WARN(logger(), "[StReturnHome] succeeded");
+        this->postEvent<EvActionSucceeded>();
+      };
+
+    action_client_->async_send_goal(goal, options);
+  }
+
+private:
+  rclcpp_action::Client<RunRobotPath>::SharedPtr action_client_;
+};
+
+class StDone : public smacc2::SmaccState<StDone, SmAbb4600Unhook>
+{
+public:
+  using SmaccState::SmaccState;
+
+  typedef mpl::list<
+    smacc2::Transition<EvStart, StWaitSystemReady>,
+    smacc2::Transition<EvReset, StIdle>
+  > reactions;
+
+  void onEntry()
+  {
+    RCLCPP_WARN(logger(), "[StDone] 任务完成，可以 reset 或重新 start");
+
+    auto node = this->getNode();
+
+    start_sub_ = node->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/start", rclcpp::QoS(10),
+      [this](std_msgs::msg::Empty::SharedPtr)
+      {
+        this->postEvent<EvStart>();
+      });
+
+    reset_sub_ = node->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/reset", rclcpp::QoS(10),
+      [this](std_msgs::msg::Empty::SharedPtr)
+      {
+        this->postEvent<EvReset>();
+      });
+  }
+
+private:
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr start_sub_;
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_sub_;
+};
+
+class StError : public smacc2::SmaccState<StError, SmAbb4600Unhook>
+{
+public:
+  using SmaccState::SmaccState;
+
+  typedef mpl::list<
+    smacc2::Transition<EvReset, StIdle>
+  > reactions;
+
+  void onEntry()
+  {
+    RCLCPP_ERROR(logger(), "[StError] 进入错误状态。查看：cat /tmp/abb4600_unhook_last_error.txt");
+    RCLCPP_ERROR(logger(), "复位：ros2 topic pub -1 /abb4600_unhook/reset std_msgs/msg/Empty \"{}\"");
+
+    auto node = this->getNode();
+
+    reset_sub_ = node->create_subscription<std_msgs::msg::Empty>(
+      "/abb4600_unhook/reset", rclcpp::QoS(10),
+      [this](std_msgs::msg::Empty::SharedPtr)
+      {
+        this->postEvent<EvReset>();
+      });
+  }
+
+private:
+  rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr reset_sub_;
+};
+
+}  // namespace sm_abb4600_unhook
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+  smacc2::run<sm_abb4600_unhook::SmAbb4600Unhook>();
+  return 0;
+}

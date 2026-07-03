@@ -6,8 +6,6 @@
 #include <moveit/move_group_interface/move_group_interface.h>
 #include <moveit/trajectory_processing/time_optimal_trajectory_generation.h>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
-#include <trajectory_msgs/msg/joint_trajectory.hpp>
-#include <trajectory_msgs/msg/joint_trajectory_point.hpp>
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
@@ -29,7 +27,7 @@ struct RapidTarget
   std::array<double, 4> rapid_quaternion;
 };
 
-geometry_msgs::msg::Pose rapidWobj0GzTcpToMoveItTool0Pose(const RapidTarget & target)
+geometry_msgs::msg::Pose toTool0Pose(const RapidTarget & target)
 {
   tf2::Quaternion tcp_orientation(
     target.rapid_quaternion[1],
@@ -45,6 +43,8 @@ geometry_msgs::msg::Pose rapidWobj0GzTcpToMoveItTool0Pose(const RapidTarget & ta
 
   const tf2::Transform base_to_tcp(tcp_orientation, tcp_position);
 
+  // RAPID 工具 GZ: PERS tooldata GZ := [TRUE,[[-75,0,216],[1,0,0,0]],...]
+  // robtarget 表示 GZ 的 TCP 位姿。MoveIt 规划组末端是 tool0，因此要反推出 tool0 位姿。
   const tf2::Transform tool0_to_gz_tcp(
     tf2::Quaternion::getIdentity(),
     tf2::Vector3(-0.075, 0.0, 0.216));
@@ -135,6 +135,7 @@ bool getOrDeclareBool(
 
 bool buildReferenceStateFromFirstTrajectoryPoint(
   const rclcpp::Node::SharedPtr & node,
+  const moveit::core::RobotModelConstPtr & robot_model,
   const moveit_msgs::msg::RobotTrajectory & trajectory,
   moveit::core::RobotState & reference_state)
 {
@@ -164,7 +165,20 @@ bool buildReferenceStateFromFirstTrajectoryPoint(
 
   std::map<std::string, double> first_point_joint_map;
   for (std::size_t i = 0; i < joint_names.size(); ++i) {
+    if (!robot_model->hasVariable(joint_names[i])) {
+      RCLCPP_WARN(
+        node->get_logger(),
+        "轨迹中存在 robot_model 不认识的 joint/variable：%s，已跳过。",
+        joint_names[i].c_str());
+      continue;
+    }
+
     first_point_joint_map[joint_names[i]] = first_positions[i];
+  }
+
+  if (first_point_joint_map.empty()) {
+    RCLCPP_ERROR(node->get_logger(), "无法从笛卡尔轨迹第一个点构造有效参考状态。");
+    return false;
   }
 
   reference_state.setVariablePositions(first_point_joint_map);
@@ -173,148 +187,6 @@ bool buildReferenceStateFromFirstTrajectoryPoint(
   RCLCPP_INFO(
     node->get_logger(),
     "已使用笛卡尔轨迹第一个点作为时间参数化参考状态，跳过 getCurrentState()。");
-
-  return true;
-}
-
-bool reorderTrajectoryForGazeboController(
-  const rclcpp::Node::SharedPtr & node,
-  trajectory_msgs::msg::JointTrajectory & trajectory)
-{
-  const std::vector<std::string> gazebo_joint_order = {
-    "joint_1",
-    "joint_2",
-    "joint_4",
-    "joint_5",
-    "joint_3",
-    "joint_6",
-  };
-
-  if (trajectory.joint_names.empty()) {
-    RCLCPP_ERROR(node->get_logger(), "轨迹 joint_names 为空，无法重排。");
-    return false;
-  }
-
-  std::map<std::string, std::size_t> old_index;
-  for (std::size_t i = 0; i < trajectory.joint_names.size(); ++i) {
-    old_index[trajectory.joint_names[i]] = i;
-  }
-
-  for (const auto & joint_name : gazebo_joint_order) {
-    if (old_index.find(joint_name) == old_index.end()) {
-      RCLCPP_ERROR(
-        node->get_logger(),
-        "轨迹中缺少 Gazebo 控制器需要的关节：%s",
-        joint_name.c_str());
-      return false;
-    }
-  }
-
-  auto reorder_vector =
-    [&](const std::vector<double> & input) -> std::vector<double>
-    {
-      if (input.empty()) {
-        return {};
-      }
-
-      if (input.size() != trajectory.joint_names.size()) {
-        return input;
-      }
-
-      std::vector<double> output;
-      output.reserve(gazebo_joint_order.size());
-      for (const auto & joint_name : gazebo_joint_order) {
-        output.push_back(input[old_index[joint_name]]);
-      }
-      return output;
-    };
-
-  for (auto & point : trajectory.points) {
-    point.positions = reorder_vector(point.positions);
-    point.velocities = reorder_vector(point.velocities);
-    point.accelerations = reorder_vector(point.accelerations);
-    point.effort = reorder_vector(point.effort);
-  }
-
-  trajectory.joint_names = gazebo_joint_order;
-
-  RCLCPP_INFO(
-    node->get_logger(),
-    "已将轨迹关节顺序重排为 Gazebo 控制器顺序：joint_1, joint_2, joint_4, joint_5, joint_3, joint_6。");
-
-  return true;
-}
-
-bool publishTrajectoryDirectlyToGazebo(
-  const rclcpp::Node::SharedPtr & node,
-  const moveit_msgs::msg::RobotTrajectory & robot_trajectory,
-  const std::string & description)
-{
-  trajectory_msgs::msg::JointTrajectory trajectory = robot_trajectory.joint_trajectory;
-
-  if (trajectory.points.empty()) {
-    RCLCPP_ERROR(node->get_logger(), "%s 轨迹为空，无法发布。", description.c_str());
-    return false;
-  }
-
-  if (!reorderTrajectoryForGazeboController(node, trajectory)) {
-    return false;
-  }
-
-  auto publisher = node->create_publisher<trajectory_msgs::msg::JointTrajectory>(
-    "/joint_trajectory_controller/joint_trajectory",
-    rclcpp::QoS(10));
-
-  const auto start_wait = std::chrono::steady_clock::now();
-  while (publisher->get_subscription_count() == 0 && rclcpp::ok()) {
-    if (std::chrono::steady_clock::now() - start_wait > std::chrono::seconds(5)) {
-      RCLCPP_ERROR(
-        node->get_logger(),
-        "%s 发布失败：/joint_trajectory_controller/joint_trajectory 没有订阅者。",
-        description.c_str());
-      return false;
-    }
-
-    RCLCPP_WARN_THROTTLE(
-      node->get_logger(),
-      *node->get_clock(),
-      1000,
-      "等待 /joint_trajectory_controller/joint_trajectory 订阅者...");
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
-
-  trajectory.header.stamp = rclcpp::Time(0, 0, RCL_ROS_TIME);
-
-  RCLCPP_INFO(
-    node->get_logger(),
-    "直接发布 %s 到 /joint_trajectory_controller/joint_trajectory，轨迹点数：%zu。",
-    description.c_str(),
-    trajectory.points.size());
-
-  publisher->publish(trajectory);
-
-  const auto & last_point = trajectory.points.back();
-  double wait_seconds =
-    static_cast<double>(last_point.time_from_start.sec) +
-    static_cast<double>(last_point.time_from_start.nanosec) * 1e-9 +
-    1.0;
-
-  if (wait_seconds < 1.0) {
-    wait_seconds = 1.0;
-  }
-
-  if (wait_seconds > 120.0) {
-    wait_seconds = 120.0;
-  }
-
-  RCLCPP_INFO(
-    node->get_logger(),
-    "等待 %s 执行完成，预计 %.2f 秒。",
-    description.c_str(),
-    wait_seconds);
-
-  std::this_thread::sleep_for(
-    std::chrono::milliseconds(static_cast<int>(wait_seconds * 1000.0)));
 
   return true;
 }
@@ -341,6 +213,10 @@ int main(int argc, char * argv[])
   const double velocity_scale = getOrDeclareDouble(node, "velocity_scale", 0.02);
   const double acceleration_scale = getOrDeclareDouble(node, "acceleration_scale", 0.02);
   const double planning_time = getOrDeclareDouble(node, "planning_time", 10.0);
+
+  // false：保持原逻辑，起点 Target_210 执行失败就退出，不影响之前项目。
+  // true ：Gazebo 调试时使用，已手动到达 Target_210 时，即使自动执行起点失败也继续执行 Path_10。
+  // 同时 true 时会绕过 getCurrentState(2.0)，避免 Gazebo joint_states 时间戳和系统时间不一致导致失败。
   const bool skip_start_execute = getOrDeclareBool(node, "skip_start_execute", false);
 
   move_group.setMaxVelocityScalingFactor(velocity_scale);
@@ -353,21 +229,11 @@ int main(int argc, char * argv[])
   std::vector<geometry_msgs::msg::Pose> waypoints;
   waypoints.reserve(targets.size());
   for (const auto & target : targets) {
-    auto pose = rapidWobj0GzTcpToMoveItTool0Pose(target);
-    RCLCPP_INFO(
-      node->get_logger(),
-      "%s converted tool0 target: xyz=(%.6f, %.6f, %.6f), qxyzw=(%.6f, %.6f, %.6f, %.6f)",
-      target.name.c_str(),
-      pose.position.x,
-      pose.position.y,
-      pose.position.z,
-      pose.orientation.x,
-      pose.orientation.y,
-      pose.orientation.z,
-      pose.orientation.w);
-    waypoints.push_back(pose);
+    waypoints.push_back(toTool0Pose(target));
   }
 
+  // 固定使用 RobotStudio 中 MoveJ Target_210 对应的六轴构型。
+  // 不再用 Target_210 的 TCP 位姿让 MoveIt 自己求 IK。
   std::map<std::string, double> target_210_joints = {
     {"joint_1", -1.6445413879080628},
     {"joint_2", 0.46621774082971995},
@@ -391,13 +257,13 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  if (skip_start_execute) {
-    RCLCPP_WARN(
-      node->get_logger(),
-      "skip_start_execute=true：跳过自动执行 Target_210。请确认机械臂已经手动到达 Target_210。");
-  } else {
-    RCLCPP_INFO(node->get_logger(), "正在运动到 Path_10 起点 Target_210。");
-    if (move_group.execute(first_plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+  RCLCPP_INFO(node->get_logger(), "正在运动到 Path_10 起点 Target_210。");
+  if (move_group.execute(first_plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+    if (skip_start_execute) {
+      RCLCPP_WARN(
+        node->get_logger(),
+        "执行起点轨迹失败，但 skip_start_execute=true，认为当前已手动到达 Target_210，继续执行 Path_10。");
+    } else {
       RCLCPP_ERROR(node->get_logger(), "执行起点轨迹失败。");
       executor.cancel();
       spinner.join();
@@ -435,10 +301,15 @@ int main(int argc, char * argv[])
   robot_trajectory::RobotTrajectory retimed_trajectory(move_group.getRobotModel(), kGroupName);
 
   if (skip_start_execute) {
+    // Gazebo 调试模式：
+    // 当前环境没有 /clock，而且 /joint_states 的时间戳和系统时间不一致。
+    // 此时 move_group.getCurrentState(2.0) 会报 Failed to fetch current robot state。
+    // 因此用笛卡尔轨迹第一个点构造参考状态，避免时间戳检查。
     moveit::core::RobotState reference_state(move_group.getRobotModel());
 
     if (!buildReferenceStateFromFirstTrajectoryPoint(
           node,
+          move_group.getRobotModel(),
           cartesian_trajectory,
           reference_state))
     {
@@ -450,6 +321,7 @@ int main(int argc, char * argv[])
 
     retimed_trajectory.setRobotTrajectoryMsg(reference_state, cartesian_trajectory);
   } else {
+    // 默认模式：保持原逻辑，不影响之前 RobotStudio / RWS 项目。
     const auto current_state = move_group.getCurrentState(2.0);
     if (!current_state) {
       RCLCPP_ERROR(node->get_logger(), "无法读取当前机器人状态，不能给笛卡尔轨迹重新生成时间戳。");
@@ -477,31 +349,17 @@ int main(int argc, char * argv[])
 
   retimed_trajectory.getRobotTrajectoryMsg(cartesian_trajectory);
 
-  if (skip_start_execute) {
-    RCLCPP_WARN(
-      node->get_logger(),
-      "skip_start_execute=true：绕过 move_group.execute()，直接发布 Path_10 到 Gazebo 控制器。");
-
-    if (!publishTrajectoryDirectlyToGazebo(node, cartesian_trajectory, "Path_10 笛卡尔轨迹")) {
-      RCLCPP_ERROR(node->get_logger(), "直接发布 Path_10 笛卡尔轨迹失败。");
-      executor.cancel();
-      spinner.join();
-      rclcpp::shutdown();
-      return 1;
-    }
-  } else {
-    RCLCPP_INFO(node->get_logger(), "正在执行 Path_10 笛卡尔轨迹。");
-    if (move_group.execute(cartesian_trajectory) != moveit::core::MoveItErrorCode::SUCCESS) {
-      RCLCPP_ERROR(node->get_logger(), "执行 Path_10 笛卡尔轨迹失败。");
-      executor.cancel();
-      spinner.join();
-      rclcpp::shutdown();
-      return 1;
-    }
+  RCLCPP_INFO(node->get_logger(), "正在执行 Path_10 笛卡尔轨迹。");
+  if (move_group.execute(cartesian_trajectory) != moveit::core::MoveItErrorCode::SUCCESS) {
+    RCLCPP_ERROR(node->get_logger(), "执行 Path_10 笛卡尔轨迹失败。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
   }
 
   if (!getOrDeclareBool(node, "return_to_target_210", true)) {
-    RCLCPP_INFO(node->get_logger(), "已按参数设置跳过自动回到 Target_210。");
+    RCLCPP_INFO(node->get_logger(), "已按参数设置跳过自动回到 Target_210，避免回程穿过 RobotStudio 场景物体。");
     RCLCPP_INFO(node->get_logger(), "Path_10 执行完成。");
     executor.cancel();
     spinner.join();
@@ -522,27 +380,13 @@ int main(int argc, char * argv[])
     return 1;
   }
 
-  if (skip_start_execute) {
-    RCLCPP_WARN(
-      node->get_logger(),
-      "skip_start_execute=true：绕过 move_group.execute()，直接发布回 Target_210 的轨迹到 Gazebo 控制器。");
-
-    if (!publishTrajectoryDirectlyToGazebo(node, return_plan.trajectory_, "回到 Target_210 轨迹")) {
-      RCLCPP_ERROR(node->get_logger(), "直接发布回 Target_210 轨迹失败。");
-      executor.cancel();
-      spinner.join();
-      rclcpp::shutdown();
-      return 1;
-    }
-  } else {
-    RCLCPP_INFO(node->get_logger(), "正在回到 Path_10 起点 Target_210。");
-    if (move_group.execute(return_plan) != moveit::core::MoveItErrorCode::SUCCESS) {
-      RCLCPP_ERROR(node->get_logger(), "执行回到 Target_210 的轨迹失败。");
-      executor.cancel();
-      spinner.join();
-      rclcpp::shutdown();
-      return 1;
-    }
+  RCLCPP_INFO(node->get_logger(), "正在回到 Path_10 起点 Target_210。");
+  if (move_group.execute(return_plan) != moveit::core::MoveItErrorCode::SUCCESS) {
+    RCLCPP_ERROR(node->get_logger(), "执行回到 Target_210 的轨迹失败。");
+    executor.cancel();
+    spinner.join();
+    rclcpp::shutdown();
+    return 1;
   }
 
   RCLCPP_INFO(node->get_logger(), "Path_10 执行完成。");

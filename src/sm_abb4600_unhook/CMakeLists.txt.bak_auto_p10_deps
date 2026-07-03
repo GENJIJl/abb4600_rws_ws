@@ -21,7 +21,6 @@ find_package(control_msgs REQUIRED)
 find_package(abb4600_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(trajectory_msgs REQUIRED)
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   rclcpp
@@ -96,7 +95,5 @@ if(TARGET sm_abb4600_unhook_node)
     geometry_msgs
     sensor_msgs
     abb4600_interfaces
-  
-  control_msgs
-  trajectory_msgs)
+  )
 endif()

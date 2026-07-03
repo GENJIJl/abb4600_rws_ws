@@ -1028,16 +1028,12 @@ std::string makePathName(const TailWaypoint & wp)
   }
 };
 
-
-struct EvAutoCycleFinished : boost::statechart::event<EvAutoCycleFinished> {};
-
 class StWaitManualVerify : public smacc2::SmaccState<StWaitManualVerify, SmAbb4600Unhook>
 {
 public:
   using SmaccState::SmaccState;
 
   typedef mpl::list<
-    smacc2::Transition<EvAutoCycleFinished, StIdle>,
     smacc2::Transition<EvUnhookSuccess, StWaitReturnHome>,
     smacc2::Transition<EvUnhookFailed, StWaitManualTarget>
   > reactions;
@@ -1168,12 +1164,6 @@ private:
           RCLCPP_WARN(
             logger(),
             "[StWaitManualVerify] AUTO_P10_IN_VERIFY_PATCH: returned to p10 successfully.");
-          
-          RCLCPP_WARN(
-            logger(),
-            "[StWaitManualVerify] AUTO_RETURN_IDLE_PATCH: p10 finished, returning state machine to StIdle.");
-
-          this->postEvent<EvAutoCycleFinished>();
           return;
         }
 

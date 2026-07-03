@@ -64,7 +64,7 @@ static const std::map<std::string, JointLimit> kAbb4600SafeLimits = {
 
 static constexpr double kInternalSingularityDanger = 0.12;   // joint_5 危险阈值
 static constexpr double kInternalSingularityWarn   = 0.20;   // joint_5 预警阈值
-static constexpr double kExternalBoundaryMargin    = 0.05;   // 外部奇异边界余量
+static constexpr double kExternalBoundaryMargin    = 0.10;   // 外部奇异边界余量
 static constexpr double kMaxJointJump              = 0.50;   // 相邻点最大跳变
 static constexpr double kTwoPi                     = 2.0 * M_PI;
 
@@ -906,7 +906,7 @@ inline TrajectoryRisk analyzeTrajectoryRisk(
         std::ostringstream oss;
         oss << "external singularity warning: point " << p
             << ", " << item.first << " = " << q
-            << " near safe boundary external_margin_0.05.";
+            << " near safe boundary.";
         risk.type = TrajectoryRiskType::EXTERNAL_SINGULARITY;
         risk.message = oss.str();
         risk.point_index = p;

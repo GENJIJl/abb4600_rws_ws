@@ -728,35 +728,6 @@ public:
       "[StExecuteGuiji2TailPath] 开始执行 guiji2 后续摘钩轨迹，共 %zu 个点：p630 -> ... -> p590",
       waypoints_.size());
 
-    
-    // AUTO_OR_MANUAL_TAIL_MODE_PATCH
-    // auto_start_guiji2_tail=false：到达目标点后等待 /abb4600_unhook/start_guiji2_tail
-    // auto_start_guiji2_tail=true ：到达目标点后直接执行后续摘钩动作
-    bool auto_start_guiji2_tail = false;
-
-    try {
-      if (!node->has_parameter("auto_start_guiji2_tail")) {
-        node->declare_parameter<bool>("auto_start_guiji2_tail", false);
-      }
-      auto_start_guiji2_tail = node->get_parameter("auto_start_guiji2_tail").as_bool();
-    } catch (const std::exception & e) {
-      RCLCPP_WARN(
-        logger(),
-        "[StExecuteGuiji2TailPath] AUTO_OR_MANUAL_TAIL_MODE_PATCH: get parameter failed: %s, use manual mode.",
-        e.what());
-      auto_start_guiji2_tail = false;
-    }
-
-    if (auto_start_guiji2_tail) {
-      RCLCPP_WARN(
-        logger(),
-        "[StExecuteGuiji2TailPath] AUTO_OR_MANUAL_TAIL_MODE_PATCH: auto_start_guiji2_tail=true, 到达目标点后自动执行后续摘钩动作。");
-
-      tail_started_ = true;
-      executeNextWaypoint();
-      return;
-    }
-
     RCLCPP_WARN(logger(), "[StExecuteGuiji2TailPath] TAIL_WAIT_PATCH: 已到达 p710，后续摘钩轨迹暂停，等待人工命令。");
     RCLCPP_WARN(logger(), "继续执行：ros2 topic pub -1 /abb4600_unhook/start_guiji2_tail std_msgs/msg/Empty \"{}\"");
 
@@ -1028,23 +999,18 @@ std::string makePathName(const TailWaypoint & wp)
   }
 };
 
-
-struct EvAutoCycleFinished : boost::statechart::event<EvAutoCycleFinished> {};
-
 class StWaitManualVerify : public smacc2::SmaccState<StWaitManualVerify, SmAbb4600Unhook>
 {
 public:
   using SmaccState::SmaccState;
 
   typedef mpl::list<
-    smacc2::Transition<EvAutoCycleFinished, StIdle>,
     smacc2::Transition<EvUnhookSuccess, StWaitReturnHome>,
     smacc2::Transition<EvUnhookFailed, StWaitManualTarget>
   > reactions;
 
   void onEntry()
   {
-    this->autoReturnP10InManualVerify();
     RCLCPP_WARN(logger(), "[StWaitManualVerify] 等待人工确认摘钩结果");
     RCLCPP_WARN(logger(), "成功：ros2 topic pub -1 /abb4600_unhook/unhook_success std_msgs/msg/Empty \"{}\"");
     RCLCPP_WARN(logger(), "失败：ros2 topic pub -1 /abb4600_unhook/unhook_failed std_msgs/msg/Empty \"{}\"");
@@ -1069,135 +1035,6 @@ public:
 private:
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr success_sub_;
   rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr failed_sub_;
-  // AUTO_P10_IN_VERIFY_PATCH
-  // 进入 StWaitManualVerify 后自动回 p10。
-  void autoReturnP10InManualVerify()
-  {
-    if (p10_return_started_in_verify_) {
-      return;
-    }
-
-    p10_return_started_in_verify_ = true;
-
-    auto node = this->getNode();
-
-    RCLCPP_WARN(
-      logger(),
-      "[StWaitManualVerify] AUTO_P10_IN_VERIFY_PATCH: entered StWaitManualVerify, returning to p10 automatically.");
-
-    p10_action_client_in_verify_ =
-      rclcpp_action::create_client<control_msgs::action::FollowJointTrajectory>(
-        node,
-        "/joint_trajectory_controller/follow_joint_trajectory");
-
-    if (!p10_action_client_in_verify_->wait_for_action_server(std::chrono::seconds(10))) {
-      const std::string msg =
-        "auto return p10 in StWaitManualVerify failed: /joint_trajectory_controller/follow_joint_trajectory action server not available";
-      RCLCPP_ERROR(logger(), "%s", msg.c_str());
-      std::ofstream("/tmp/abb4600_unhook_last_error.txt") << msg << std::endl;
-      return;
-    }
-
-    control_msgs::action::FollowJointTrajectory::Goal goal;
-
-    goal.trajectory.joint_names = {
-      "joint_1",
-      "joint_2",
-      "joint_3",
-      "joint_4",
-      "joint_5",
-      "joint_6"
-    };
-
-    trajectory_msgs::msg::JointTrajectoryPoint point;
-
-    point.positions = {
-      -1.509919242,
-      -0.485882210,
-       1.308298807,
-      -4.726997386,
-       1.584968400,
-       4.119116661
-    };
-
-    point.velocities = {
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0,
-      0.0
-    };
-
-    point.time_from_start.sec = 30;
-    point.time_from_start.nanosec = 0;
-
-    goal.trajectory.points.push_back(point);
-    goal.goal_time_tolerance.sec = 5;
-    goal.goal_time_tolerance.nanosec = 0;
-
-    using GoalHandleP10 =
-      rclcpp_action::ClientGoalHandle<control_msgs::action::FollowJointTrajectory>;
-
-    auto send_goal_options =
-      rclcpp_action::Client<control_msgs::action::FollowJointTrajectory>::SendGoalOptions();
-
-    send_goal_options.goal_response_callback =
-      [this](GoalHandleP10::SharedPtr goal_handle)
-      {
-        if (!goal_handle) {
-          const std::string msg = "auto return p10 in StWaitManualVerify failed: goal rejected";
-          RCLCPP_ERROR(logger(), "%s", msg.c_str());
-          std::ofstream("/tmp/abb4600_unhook_last_error.txt") << msg << std::endl;
-          return;
-        }
-
-        RCLCPP_WARN(
-          logger(),
-          "[StWaitManualVerify] AUTO_P10_IN_VERIFY_PATCH: p10 goal accepted.");
-      };
-
-    send_goal_options.result_callback =
-      [this](const GoalHandleP10::WrappedResult & result)
-      {
-        if (
-          result.code == rclcpp_action::ResultCode::SUCCEEDED &&
-          result.result &&
-          result.result->error_code == control_msgs::action::FollowJointTrajectory::Result::SUCCESSFUL)
-        {
-          RCLCPP_WARN(
-            logger(),
-            "[StWaitManualVerify] AUTO_P10_IN_VERIFY_PATCH: returned to p10 successfully.");
-          
-          RCLCPP_WARN(
-            logger(),
-            "[StWaitManualVerify] AUTO_RETURN_IDLE_PATCH: p10 finished, returning state machine to StIdle.");
-
-          this->postEvent<EvAutoCycleFinished>();
-          return;
-        }
-
-        std::string msg = "auto return p10 in StWaitManualVerify failed";
-
-        if (result.result) {
-          msg += ": controller error_code=" + std::to_string(result.result->error_code);
-          if (!result.result->error_string.empty()) {
-            msg += ", error_string=" + result.result->error_string;
-          }
-        }
-
-        RCLCPP_ERROR(logger(), "%s", msg.c_str());
-        std::ofstream("/tmp/abb4600_unhook_last_error.txt") << msg << std::endl;
-      };
-
-    p10_action_client_in_verify_->async_send_goal(goal, send_goal_options);
-  }
-
-
-private:
-  rclcpp_action::Client<control_msgs::action::FollowJointTrajectory>::SharedPtr p10_action_client_in_verify_;
-  bool p10_return_started_in_verify_{false};
-
 };
 
 class StWaitReturnHome : public smacc2::SmaccState<StWaitReturnHome, SmAbb4600Unhook>

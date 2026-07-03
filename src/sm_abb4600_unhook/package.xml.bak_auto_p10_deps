@@ -25,5 +25,4 @@
     <build_type>ament_cmake</build_type>
   </export>
   <depend>geometry_msgs</depend>
-  <depend>trajectory_msgs</depend>
 </package>

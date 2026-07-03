@@ -74,127 +74,6 @@ geometry_msgs::msg::Pose rapidWobj0GzTcpToMoveItTool0Pose(const RapidTarget & ta
   return pose;
 }
 
-
-tf2::Transform rapidMmTransformForHookFrame(
-  const std::array<double, 3> & position_mm,
-  const std::array<double, 4> & rapid_quaternion)
-{
-  // ABB RAPID quaternion: [q1,q2,q3,q4] = [qw,qx,qy,qz]
-  // ROS/tf2 quaternion:   [x,y,z,w]
-  tf2::Quaternion q(
-    rapid_quaternion[1],
-    rapid_quaternion[2],
-    rapid_quaternion[3],
-    rapid_quaternion[0]);
-  q.normalize();
-
-  return tf2::Transform(
-    q,
-    tf2::Vector3(
-      position_mm[0] / 1000.0,
-      position_mm[1] / 1000.0,
-      position_mm[2] / 1000.0));
-}
-
-geometry_msgs::msg::Pose rapidWobjLowHookTcpToMoveItTool0Pose(const RapidTarget & target)
-{
-  // 与 execute_train_hook_moveit_node.cpp 中 guiji_1 / guiji_2 一致：
-  // RAPID: target 是 wobj_low_300_1200 下的 Tooldata_HookM TCP 位姿
-  // MoveIt: 实际控制 tool0
-  //
-  // base_to_tool0 = base_to_wobj * wobj_to_tcp * inverse(tool0_to_tcp)
-
-  const std::array<double, 3> wobj_low_300_1200_position_mm{
-    1510.44,
-    75.6853,
-    430.0
-  };
-
-  const std::array<double, 4> wobj_low_300_1200_quaternion{
-    0.707107,
-    7.45058e-09,
-    0.707107,
-    7.45058e-09
-  };
-
-  const std::array<double, 3> tooldata_hook_m_position_mm{
-    62.602238005,
-    108.155222142,
-    397.729019222
-  };
-
-  const std::array<double, 4> tooldata_hook_m_quaternion{
-    0.926941042,
-    -0.012790803,
-    0.012046937,
-    -0.374795373
-  };
-
-  const tf2::Transform base_to_wobj =
-    rapidMmTransformForHookFrame(wobj_low_300_1200_position_mm, wobj_low_300_1200_quaternion);
-
-  const tf2::Transform wobj_to_tcp =
-    rapidMmTransformForHookFrame(target.position_mm, target.rapid_quaternion);
-
-  const tf2::Transform tool0_to_tcp =
-    rapidMmTransformForHookFrame(tooldata_hook_m_position_mm, tooldata_hook_m_quaternion);
-
-  const tf2::Transform base_to_tool0 =
-    base_to_wobj * wobj_to_tcp * tool0_to_tcp.inverse();
-
-  geometry_msgs::msg::Pose pose;
-  pose.position.x = base_to_tool0.getOrigin().x();
-  pose.position.y = base_to_tool0.getOrigin().y();
-  pose.position.z = base_to_tool0.getOrigin().z();
-  pose.orientation = tf2::toMsg(base_to_tool0.getRotation());
-  return pose;
-}
-
-
-geometry_msgs::msg::Pose baseTcpMmToMoveItTool0Pose(const RapidTarget & target)
-{
-  // 输入 target 表示：
-  // base_link 下的 Tooldata_HookM TCP 位姿。
-  //
-  // 输入坐标形式：
-  // safe_tcp_base_mm:x_mm,y_mm,z_mm,qx,qy,qz,qw
-  //
-  // MoveIt 实际控制的是 tool0，所以内部需要：
-  // base_to_tool0 = base_to_tcp * inverse(tool0_to_tcp)
-
-  const std::array<double, 3> tooldata_hook_m_position_mm{
-    62.602238005,
-    108.155222142,
-    397.729019222
-  };
-
-  const std::array<double, 4> tooldata_hook_m_quaternion{
-    0.926941042,
-    -0.012790803,
-    0.012046937,
-    -0.374795373
-  };
-
-  const tf2::Transform base_to_tcp =
-    rapidMmTransformForHookFrame(target.position_mm, target.rapid_quaternion);
-
-  const tf2::Transform tool0_to_tcp =
-    rapidMmTransformForHookFrame(
-      tooldata_hook_m_position_mm,
-      tooldata_hook_m_quaternion);
-
-  const tf2::Transform base_to_tool0 =
-    base_to_tcp * tool0_to_tcp.inverse();
-
-  geometry_msgs::msg::Pose pose;
-  pose.position.x = base_to_tool0.getOrigin().x();
-  pose.position.y = base_to_tool0.getOrigin().y();
-  pose.position.z = base_to_tool0.getOrigin().z();
-  pose.orientation = tf2::toMsg(base_to_tool0.getRotation());
-  return pose;
-}
-
-
 std::vector<RapidTarget> makePath10Targets()
 {
   return {
@@ -297,52 +176,6 @@ bool parseSafePoseMmPathName(
 
   return true;
 }
-
-bool parseSafeTcpBaseMmPathName(
-  const std::string & path_name,
-  RapidTarget & target,
-  std::string & error_message)
-{
-  const std::string prefix = "safe_tcp_base_mm:";
-
-  if (path_name.rfind(prefix, 0) != 0) {
-    error_message = "path_name does not start with safe_tcp_base_mm:";
-    return false;
-  }
-
-  const std::string payload = path_name.substr(prefix.size());
-
-  std::vector<double> values;
-  std::stringstream ss(payload);
-  std::string item;
-
-  while (std::getline(ss, item, ',')) {
-    try {
-      values.push_back(std::stod(item));
-    } catch (const std::exception &) {
-      error_message = "Failed to parse number in safe_tcp_base_mm payload: " + item;
-      return false;
-    }
-  }
-
-  if (values.size() != 7) {
-    std::ostringstream oss;
-    oss << "safe_tcp_base_mm requires 7 values: x_mm,y_mm,z_mm,qx,qy,qz,qw, but got "
-        << values.size();
-    error_message = oss.str();
-    return false;
-  }
-
-  target.name = "CustomSafeTcpBasePose";
-  target.position_mm = {values[0], values[1], values[2]};
-
-  // safe_tcp_base_mm 输入使用 ROS 四元数顺序：qx,qy,qz,qw。
-  // RapidTarget 内部仍然统一存成 RAPID 顺序：qw,qx,qy,qz。
-  target.rapid_quaternion = {values[6], values[3], values[4], values[5]};
-
-  return true;
-}
-
 
 
 void scaleRobotTrajectoryTiming(
@@ -453,7 +286,7 @@ public:
     RCLCPP_INFO(get_logger(), "Pause topic:  /abb4600_unhook/pause");
     RCLCPP_INFO(get_logger(), "Resume topic: /abb4600_unhook/resume");
     RCLCPP_INFO(get_logger(), "Cancel topic: /abb4600_unhook/cancel");
-    RCLCPP_INFO(get_logger(), "Supported path_name values: path10, return_home, safe_target_30 ... safe_target_200, safe_path10_targets, safe_pose_mm:x,y,z,qw,qx,qy,qz, safe_tcp_base_mm:x,y,z,qx,qy,qz,qw");
+    RCLCPP_INFO(get_logger(), "Supported path_name values: path10, return_home, safe_target_30 ... safe_target_200, safe_path10_targets, safe_pose_mm:x,y,z,qw,qx,qy,qz, safe_target_30 ... safe_target_200, safe_path10_targets, safe_pose_mm:x,y,z,qw,qx,qy,qz");
   }
 
 private:
@@ -496,16 +329,14 @@ private:
     const bool is_safe_pose_mm =
       goal->path_name.rfind("safe_pose_mm:", 0) == 0;
 
-    const bool is_safe_tcp_base_mm =
-      goal->path_name.rfind("safe_tcp_base_mm:", 0) == 0;
-
     const bool is_supported_path =
       goal->path_name == "path10" ||
       goal->path_name == "return_home" ||
       goal->path_name == "safe_path10_targets" ||
+      goal->path_name == "guiji1" ||
+      goal->path_name == "guiji2" ||
       is_safe_target ||
-      is_safe_pose_mm ||
-      is_safe_tcp_base_mm;
+      is_safe_pose_mm;
 
     if (!is_supported_path) {
       RCLCPP_ERROR(get_logger(), "Unknown path_name: %s", goal->path_name.c_str());
@@ -708,12 +539,13 @@ private:
       ok = runPath10(goal_handle, goal, result);
     } else if (goal->path_name == "return_home") {
       ok = runReturnHome(goal_handle, goal, result);
+      else if (goal->path_name == "guiji1") {
+      ok = runGuiji1(goal_handle, goal, result);
+    } else if (goal->path_name == "guiji2") {
+      ok = runGuiji2(goal_handle, goal, result);
     } else if (goal->path_name == "safe_path10_targets") {
       ok = runSafePath10Targets(goal_handle, goal, result);
-    } else if (
-      goal->path_name.rfind("safe_pose_mm:", 0) == 0 ||
-      goal->path_name.rfind("safe_tcp_base_mm:", 0) == 0)
-    {
+    } else if (goal->path_name.rfind("safe_pose_mm:", 0) == 0) {
       ok = runSafePoseMm(goal_handle, goal, result);
     } else if (goal->path_name.rfind("safe_target_", 0) == 0) {
       ok = runSafeTarget(goal_handle, goal, result);
@@ -1011,26 +843,7 @@ private:
     RapidTarget rapid_target;
     std::string parse_error;
 
-    const bool use_tcp_base_mm =
-      goal->path_name.rfind("safe_tcp_base_mm:", 0) == 0;
-
-    bool parse_ok = false;
-
-    if (use_tcp_base_mm) {
-      parse_ok =
-        parseSafeTcpBaseMmPathName(
-          goal->path_name,
-          rapid_target,
-          parse_error);
-    } else {
-      parse_ok =
-        parseSafePoseMmPathName(
-          goal->path_name,
-          rapid_target,
-          parse_error);
-    }
-
-    if (!parse_ok) {
+    if (!parseSafePoseMmPathName(goal->path_name, rapid_target, parse_error)) {
       result->message = parse_error;
       return false;
     }
@@ -1070,37 +883,18 @@ private:
           kv.second);
       }
 
-      geometry_msgs::msg::Pose target_pose;
+      const auto target_pose = rapidWobj0GzTcpToMoveItTool0Pose(rapid_target);
 
-      if (use_tcp_base_mm) {
-        target_pose = baseTcpMmToMoveItTool0Pose(rapid_target);
-      } else {
-        target_pose = rapidWobjLowHookTcpToMoveItTool0Pose(rapid_target);
-      }
-
-      if (use_tcp_base_mm) {
-        RCLCPP_INFO(
-          get_logger(),
-          "[RunRobotPath] safe_tcp_base_mm target TCP in base_link: x=%.3f y=%.3f z=%.3f qx=%.6f qy=%.6f qz=%.6f qw=%.6f",
-          rapid_target.position_mm[0],
-          rapid_target.position_mm[1],
-          rapid_target.position_mm[2],
-          rapid_target.rapid_quaternion[1],
-          rapid_target.rapid_quaternion[2],
-          rapid_target.rapid_quaternion[3],
-          rapid_target.rapid_quaternion[0]);
-      } else {
-        RCLCPP_INFO(
-          get_logger(),
-          "[RunRobotPath] safe_pose_mm target TCP in wobj_low_300_1200: x=%.3f y=%.3f z=%.3f qw=%.6f qx=%.6f qy=%.6f qz=%.6f",
-          rapid_target.position_mm[0],
-          rapid_target.position_mm[1],
-          rapid_target.position_mm[2],
-          rapid_target.rapid_quaternion[0],
-          rapid_target.rapid_quaternion[1],
-          rapid_target.rapid_quaternion[2],
-          rapid_target.rapid_quaternion[3]);
-      }
+      RCLCPP_INFO(
+        get_logger(),
+        "[RunRobotPath] safe_pose_mm target TCP: x=%.3f y=%.3f z=%.3f qw=%.6f qx=%.6f qy=%.6f qz=%.6f",
+        rapid_target.position_mm[0],
+        rapid_target.position_mm[1],
+        rapid_target.position_mm[2],
+        rapid_target.rapid_quaternion[0],
+        rapid_target.rapid_quaternion[1],
+        rapid_target.rapid_quaternion[2],
+        rapid_target.rapid_quaternion[3]);
 
       publishFeedback(goal_handle, 0.25, "solving singularity-aware safe IK for safe_pose_mm from current posture");
 
@@ -1149,23 +943,25 @@ private:
         return false;
       }
 
-      // safe_pose_mm 专用于从当前真实姿态移动到给定目标。
-      // p10 的 joint_3 接近 URDF 上限，guiji_1/guiji_2 节点对此只报警不拒绝。
-      // 因此这里不使用 singularity-aware soft guard 拦截 point 0，
-      // 后面仍然保留 TrajectoryGuard 硬限位检查。
-      std::string guard_error;
-      const double safe_pose_guard_margin = 0.0;
-      const bool safe_pose_check_segment_velocity = false;
+      const auto target_risk =
+        abb4600_rws_cpp::analyzeTrajectoryRisk(
+          target_plan.trajectory_.joint_trajectory);
 
+      if (target_risk.type != abb4600_rws_cpp::TrajectoryRiskType::SAFE) {
+        result->message =
+          "safe_pose_mm target plan rejected by singularity-aware guard: " +
+          target_risk.message;
+        return false;
+      }
+
+      std::string guard_error;
       if (!abb4600_rws_cpp::validateTrajectoryGuard(
           target_plan.trajectory_,
           get_logger(),
-          guard_error,
-          safe_pose_guard_margin,
-          safe_pose_check_segment_velocity))
+          guard_error))
       {
         result->message =
-          "safe_pose_mm target plan rejected by hard-limit TrajectoryGuard: " + guard_error;
+          "safe_pose_mm target plan rejected by TrajectoryGuard: " + guard_error;
         return false;
       }
 

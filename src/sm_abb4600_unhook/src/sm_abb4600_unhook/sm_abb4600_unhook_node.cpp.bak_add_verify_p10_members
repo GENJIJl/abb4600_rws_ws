@@ -728,35 +728,6 @@ public:
       "[StExecuteGuiji2TailPath] 开始执行 guiji2 后续摘钩轨迹，共 %zu 个点：p630 -> ... -> p590",
       waypoints_.size());
 
-    
-    // AUTO_OR_MANUAL_TAIL_MODE_PATCH
-    // auto_start_guiji2_tail=false：到达目标点后等待 /abb4600_unhook/start_guiji2_tail
-    // auto_start_guiji2_tail=true ：到达目标点后直接执行后续摘钩动作
-    bool auto_start_guiji2_tail = false;
-
-    try {
-      if (!node->has_parameter("auto_start_guiji2_tail")) {
-        node->declare_parameter<bool>("auto_start_guiji2_tail", false);
-      }
-      auto_start_guiji2_tail = node->get_parameter("auto_start_guiji2_tail").as_bool();
-    } catch (const std::exception & e) {
-      RCLCPP_WARN(
-        logger(),
-        "[StExecuteGuiji2TailPath] AUTO_OR_MANUAL_TAIL_MODE_PATCH: get parameter failed: %s, use manual mode.",
-        e.what());
-      auto_start_guiji2_tail = false;
-    }
-
-    if (auto_start_guiji2_tail) {
-      RCLCPP_WARN(
-        logger(),
-        "[StExecuteGuiji2TailPath] AUTO_OR_MANUAL_TAIL_MODE_PATCH: auto_start_guiji2_tail=true, 到达目标点后自动执行后续摘钩动作。");
-
-      tail_started_ = true;
-      executeNextWaypoint();
-      return;
-    }
-
     RCLCPP_WARN(logger(), "[StExecuteGuiji2TailPath] TAIL_WAIT_PATCH: 已到达 p710，后续摘钩轨迹暂停，等待人工命令。");
     RCLCPP_WARN(logger(), "继续执行：ros2 topic pub -1 /abb4600_unhook/start_guiji2_tail std_msgs/msg/Empty \"{}\"");
 
@@ -1028,16 +999,12 @@ std::string makePathName(const TailWaypoint & wp)
   }
 };
 
-
-struct EvAutoCycleFinished : boost::statechart::event<EvAutoCycleFinished> {};
-
 class StWaitManualVerify : public smacc2::SmaccState<StWaitManualVerify, SmAbb4600Unhook>
 {
 public:
   using SmaccState::SmaccState;
 
   typedef mpl::list<
-    smacc2::Transition<EvAutoCycleFinished, StIdle>,
     smacc2::Transition<EvUnhookSuccess, StWaitReturnHome>,
     smacc2::Transition<EvUnhookFailed, StWaitManualTarget>
   > reactions;
@@ -1168,12 +1135,6 @@ private:
           RCLCPP_WARN(
             logger(),
             "[StWaitManualVerify] AUTO_P10_IN_VERIFY_PATCH: returned to p10 successfully.");
-          
-          RCLCPP_WARN(
-            logger(),
-            "[StWaitManualVerify] AUTO_RETURN_IDLE_PATCH: p10 finished, returning state machine to StIdle.");
-
-          this->postEvent<EvAutoCycleFinished>();
           return;
         }
 
@@ -1193,10 +1154,6 @@ private:
     p10_action_client_in_verify_->async_send_goal(goal, send_goal_options);
   }
 
-
-private:
-  rclcpp_action::Client<control_msgs::action::FollowJointTrajectory>::SharedPtr p10_action_client_in_verify_;
-  bool p10_return_started_in_verify_{false};
 
 };
 
