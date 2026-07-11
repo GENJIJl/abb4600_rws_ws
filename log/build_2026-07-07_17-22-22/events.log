@@ -1,0 +1,23 @@
+[0.000000] (-) TimerEvent: {}
+[0.000169] (-) JobUnselected: {'identifier': 'abb4600_gazebo'}
+[0.000424] (-) JobUnselected: {'identifier': 'abb4600_interfaces'}
+[0.000839] (-) JobUnselected: {'identifier': 'abb_bringup'}
+[0.001009] (-) JobUnselected: {'identifier': 'abb_egm_msgs'}
+[0.001024] (-) JobUnselected: {'identifier': 'abb_egm_rws_managers'}
+[0.001035] (-) JobUnselected: {'identifier': 'abb_hardware_interface'}
+[0.001045] (-) JobUnselected: {'identifier': 'abb_irb4600_60_205_moveit_config'}
+[0.001056] (-) JobUnselected: {'identifier': 'abb_irb4600_support'}
+[0.001379] (-) JobUnselected: {'identifier': 'abb_libegm'}
+[0.001415] (-) JobUnselected: {'identifier': 'abb_librws'}
+[0.001479] (-) JobUnselected: {'identifier': 'abb_rapid_msgs'}
+[0.001499] (-) JobUnselected: {'identifier': 'abb_rapid_sm_addin_msgs'}
+[0.001525] (-) JobUnselected: {'identifier': 'abb_resources'}
+[0.001616] (-) JobUnselected: {'identifier': 'abb_robot_msgs'}
+[0.001633] (-) JobUnselected: {'identifier': 'abb_ros2'}
+[0.001648] (-) JobUnselected: {'identifier': 'abb_rws_client'}
+[0.001663] (-) JobUnselected: {'identifier': 'hook_vision'}
+[0.001746] (-) JobUnselected: {'identifier': 'sm_abb4600_unhook'}
+[0.001777] (abb4600_rws_cpp) JobQueued: {'identifier': 'abb4600_rws_cpp', 'dependencies': OrderedDict({'abb4600_interfaces': '/home/lyr/xm/install/abb4600_interfaces', 'abb_irb4600_support': '/home/lyr/xm/install/abb_irb4600_support', 'abb_resources': '/home/lyr/xm/install/abb_resources', 'abb_bringup': '/home/lyr/xm/install/abb_bringup', 'abb_irb4600_60_205_moveit_config': '/home/lyr/xm/install/abb_irb4600_60_205_moveit_config'})}
+[0.001825] (abb4600_rws_cpp) JobStarted: {'identifier': 'abb4600_rws_cpp'}
+[0.011849] (abb4600_rws_cpp) JobEnded: {'identifier': 'abb4600_rws_cpp', 'rc': 1}
+[0.022281] (-) EventReactorShutdown: {}

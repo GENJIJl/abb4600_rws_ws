@@ -1,0 +1,482 @@
+[0.093s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build', '--packages-select', 'abb4600_rws_cpp']
+[0.093s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='build', build_base='build', install_base='install', merge_install=False, symlink_install=False, test_result_base=None, continue_on_error=False, executor='parallel', parallel_workers=16, event_handlers=None, ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['.'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=['abb4600_rws_cpp'], packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, allow_overriding=[], cmake_args=None, cmake_target=None, cmake_target_skip_unavailable=False, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, ament_cmake_args=None, catkin_cmake_args=None, catkin_skip_building_tests=False, mixin_files=None, mixin=None, verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0x761f6d1915b0>, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x761f6d1914c0>, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x761f6d1914c0>>, mixin_verb=('build',))
+[0.126s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.126s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.126s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.126s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.126s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[0.126s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.126s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/home/lyr/xm'
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[0.126s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['cmake', 'python']
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'cmake'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['python_setup_py']
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'python_setup_py'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extensions ['ignore', 'ignore_ament_install']
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extension 'ignore'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extension 'ignore_ament_install'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extensions ['colcon_pkg']
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extension 'colcon_pkg'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extensions ['colcon_meta']
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extension 'colcon_meta'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extensions ['ros']
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extension 'ros'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extensions ['cmake', 'python']
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extension 'cmake'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extension 'python'
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extensions ['python_setup_py']
+[0.150s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws) by extension 'python_setup_py'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/build) by extensions ['ignore', 'ignore_ament_install']
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/build) by extension 'ignore'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/build) ignored
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extensions ['ignore', 'ignore_ament_install']
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extension 'ignore'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extension 'ignore_ament_install'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extensions ['colcon_pkg']
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extension 'colcon_pkg'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extensions ['colcon_meta']
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extension 'colcon_meta'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extensions ['ros']
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extension 'ros'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extensions ['cmake', 'python']
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extension 'cmake'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extension 'python'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extensions ['python_setup_py']
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/generated_urdf) by extension 'python_setup_py'
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/install) by extensions ['ignore', 'ignore_ament_install']
+[0.151s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/install) by extension 'ignore'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/install) ignored
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/log) by extensions ['ignore', 'ignore_ament_install']
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/log) by extension 'ignore'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/log) ignored
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extensions ['ignore', 'ignore_ament_install']
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extension 'ignore'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extension 'ignore_ament_install'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extensions ['colcon_pkg']
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extension 'colcon_pkg'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extensions ['colcon_meta']
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extension 'colcon_meta'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extensions ['ros']
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extension 'ros'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extensions ['cmake', 'python']
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extension 'cmake'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extension 'python'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extensions ['python_setup_py']
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src) by extension 'python_setup_py'
+[0.152s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extensions ['ignore', 'ignore_ament_install']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extension 'ignore'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extension 'ignore_ament_install'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extensions ['colcon_pkg']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extension 'colcon_pkg'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extensions ['colcon_meta']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extension 'colcon_meta'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extensions ['ros']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extension 'ros'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extensions ['cmake', 'python']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extension 'cmake'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extension 'python'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extensions ['python_setup_py']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/SMACC2) by extension 'python_setup_py'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extensions ['ignore', 'ignore_ament_install']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extension 'ignore'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extension 'ignore_ament_install'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extensions ['colcon_pkg']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extension 'colcon_pkg'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extensions ['colcon_meta']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extension 'colcon_meta'
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extensions ['ros']
+[0.153s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_gazebo) by extension 'ros'
+[0.155s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb4600_gazebo' with type 'ros.ament_python' and name 'abb4600_gazebo'
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extensions ['ignore', 'ignore_ament_install']
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extension 'ignore'
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extension 'ignore_ament_install'
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extensions ['colcon_pkg']
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extension 'colcon_pkg'
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extensions ['colcon_meta']
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extension 'colcon_meta'
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extensions ['ros']
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_interfaces) by extension 'ros'
+[0.156s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb4600_interfaces' with type 'ros.ament_cmake' and name 'abb4600_interfaces'
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extensions ['ignore', 'ignore_ament_install']
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extension 'ignore'
+[0.156s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extension 'ignore_ament_install'
+[0.157s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extensions ['colcon_pkg']
+[0.157s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extension 'colcon_pkg'
+[0.157s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extensions ['colcon_meta']
+[0.157s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extension 'colcon_meta'
+[0.157s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extensions ['ros']
+[0.157s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb4600_rws_cpp) by extension 'ros'
+[0.158s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb4600_rws_cpp' with type 'ros.ament_cmake' and name 'abb4600_rws_cpp'
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extensions ['ignore', 'ignore_ament_install']
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extension 'ignore'
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extension 'ignore_ament_install'
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extensions ['colcon_pkg']
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extension 'colcon_pkg'
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extensions ['colcon_meta']
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extension 'colcon_meta'
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extensions ['ros']
+[0.158s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_bringup) by extension 'ros'
+[0.159s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_bringup' with type 'ros.ament_cmake' and name 'abb_bringup'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extensions ['ignore', 'ignore_ament_install']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extension 'ignore'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extension 'ignore_ament_install'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extensions ['colcon_pkg']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extension 'colcon_pkg'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extensions ['colcon_meta']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extension 'colcon_meta'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extensions ['ros']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extension 'ros'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extensions ['cmake', 'python']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extension 'cmake'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extension 'python'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extensions ['python_setup_py']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers) by extension 'python_setup_py'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extensions ['ignore', 'ignore_ament_install']
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extension 'ignore'
+[0.159s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extension 'ignore_ament_install'
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extensions ['colcon_pkg']
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extension 'colcon_pkg'
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extensions ['colcon_meta']
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extension 'colcon_meta'
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extensions ['ros']
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers) by extension 'ros'
+[0.160s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers' with type 'ros.cmake' and name 'abb_egm_rws_managers'
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extensions ['ignore', 'ignore_ament_install']
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extension 'ignore'
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extension 'ignore_ament_install'
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extensions ['colcon_pkg']
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extension 'colcon_pkg'
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extensions ['colcon_meta']
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extension 'colcon_meta'
+[0.160s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extensions ['ros']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_hardware_interface) by extension 'ros'
+[0.161s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_hardware_interface' with type 'ros.ament_cmake' and name 'abb_hardware_interface'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extensions ['ignore', 'ignore_ament_install']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extension 'ignore'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extension 'ignore_ament_install'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extensions ['colcon_pkg']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extension 'colcon_pkg'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extensions ['colcon_meta']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extension 'colcon_meta'
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extensions ['ros']
+[0.161s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config) by extension 'ros'
+[0.162s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config' with type 'ros.ament_cmake' and name 'abb_irb4600_60_205_moveit_config'
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extensions ['ignore', 'ignore_ament_install']
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extension 'ignore'
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extension 'ignore_ament_install'
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extensions ['colcon_pkg']
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extension 'colcon_pkg'
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extensions ['colcon_meta']
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extension 'colcon_meta'
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extensions ['ros']
+[0.162s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_irb4600_support) by extension 'ros'
+[0.163s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_irb4600_support' with type 'ros.ament_cmake' and name 'abb_irb4600_support'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extensions ['ignore', 'ignore_ament_install']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extension 'ignore'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extension 'ignore_ament_install'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extensions ['colcon_pkg']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extension 'colcon_pkg'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extensions ['colcon_meta']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extension 'colcon_meta'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extensions ['ros']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extension 'ros'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extensions ['cmake', 'python']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extension 'cmake'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extension 'python'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extensions ['python_setup_py']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm) by extension 'python_setup_py'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extensions ['ignore', 'ignore_ament_install']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extension 'ignore'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extension 'ignore_ament_install'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extensions ['colcon_pkg']
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extension 'colcon_pkg'
+[0.163s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extensions ['colcon_meta']
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extension 'colcon_meta'
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extensions ['ros']
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_libegm/abb_libegm) by extension 'ros'
+[0.164s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_libegm/abb_libegm' with type 'ros.cmake' and name 'abb_libegm'
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extensions ['ignore', 'ignore_ament_install']
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extension 'ignore'
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extension 'ignore_ament_install'
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extensions ['colcon_pkg']
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extension 'colcon_pkg'
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extensions ['colcon_meta']
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extension 'colcon_meta'
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extensions ['ros']
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extension 'ros'
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extensions ['cmake', 'python']
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extension 'cmake'
+[0.164s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extension 'python'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extensions ['python_setup_py']
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws) by extension 'python_setup_py'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extensions ['ignore', 'ignore_ament_install']
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extension 'ignore'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extension 'ignore_ament_install'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extensions ['colcon_pkg']
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extension 'colcon_pkg'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extensions ['colcon_meta']
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extension 'colcon_meta'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extensions ['ros']
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_librws/abb_librws) by extension 'ros'
+[0.165s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_librws/abb_librws' with type 'ros.cmake' and name 'abb_librws'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extensions ['ignore', 'ignore_ament_install']
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extension 'ignore'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extension 'ignore_ament_install'
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extensions ['colcon_pkg']
+[0.165s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extension 'colcon_pkg'
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extensions ['colcon_meta']
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extension 'colcon_meta'
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extensions ['ros']
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_resources) by extension 'ros'
+[0.166s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_resources' with type 'ros.ament_cmake' and name 'abb_resources'
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extensions ['ignore', 'ignore_ament_install']
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extension 'ignore'
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extension 'ignore_ament_install'
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extensions ['colcon_pkg']
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extension 'colcon_pkg'
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extensions ['colcon_meta']
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extension 'colcon_meta'
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extensions ['ros']
+[0.166s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2) by extension 'ros'
+[0.167s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_ros2' with type 'ros.ament_cmake' and name 'abb_ros2'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extension 'ignore'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extension 'ignore_ament_install'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extensions ['colcon_pkg']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extension 'colcon_pkg'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extensions ['colcon_meta']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extension 'colcon_meta'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extensions ['ros']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extension 'ros'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extensions ['cmake', 'python']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extension 'cmake'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extension 'python'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extensions ['python_setup_py']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs) by extension 'python_setup_py'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extension 'ignore'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extension 'ignore_ament_install'
+[0.167s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extensions ['colcon_pkg']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extension 'colcon_pkg'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extensions ['colcon_meta']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extension 'colcon_meta'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extensions ['ros']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extension 'ros'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extensions ['cmake', 'python']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extension 'cmake'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extension 'python'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extensions ['python_setup_py']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs) by extension 'python_setup_py'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extension 'ignore'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extension 'ignore_ament_install'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extensions ['colcon_pkg']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extension 'colcon_pkg'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extensions ['colcon_meta']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extension 'colcon_meta'
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extensions ['ros']
+[0.168s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs) by extension 'ros'
+[0.169s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs' with type 'ros.ament_cmake' and name 'abb_egm_msgs'
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extension 'ignore'
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extension 'ignore_ament_install'
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extensions ['colcon_pkg']
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extension 'colcon_pkg'
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extensions ['colcon_meta']
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extension 'colcon_meta'
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extensions ['ros']
+[0.169s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs) by extension 'ros'
+[0.169s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs' with type 'ros.ament_cmake' and name 'abb_rapid_msgs'
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extension 'ignore'
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extension 'ignore_ament_install'
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extensions ['colcon_pkg']
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extension 'colcon_pkg'
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extensions ['colcon_meta']
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extension 'colcon_meta'
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extensions ['ros']
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs) by extension 'ros'
+[0.170s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs' with type 'ros.ament_cmake' and name 'abb_rapid_sm_addin_msgs'
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extensions ['ignore', 'ignore_ament_install']
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extension 'ignore'
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extension 'ignore_ament_install'
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extensions ['colcon_pkg']
+[0.170s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extension 'colcon_pkg'
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extensions ['colcon_meta']
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extension 'colcon_meta'
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extensions ['ros']
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs) by extension 'ros'
+[0.171s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs' with type 'ros.ament_cmake' and name 'abb_robot_msgs'
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extensions ['ignore', 'ignore_ament_install']
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extension 'ignore'
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extension 'ignore_ament_install'
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extensions ['colcon_pkg']
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extension 'colcon_pkg'
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extensions ['colcon_meta']
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extension 'colcon_meta'
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extensions ['ros']
+[0.171s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/abb_rws_client) by extension 'ros'
+[0.172s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/abb_rws_client' with type 'ros.ament_cmake' and name 'abb_rws_client'
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extensions ['ignore', 'ignore_ament_install']
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extension 'ignore'
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extension 'ignore_ament_install'
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extensions ['colcon_pkg']
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extension 'colcon_pkg'
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extensions ['colcon_meta']
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extension 'colcon_meta'
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extensions ['ros']
+[0.172s] Level 1:colcon.colcon_core.package_identification:_identify(abb4600_rws_ws/src/sm_abb4600_unhook) by extension 'ros'
+[0.173s] DEBUG:colcon.colcon_core.package_identification:Package 'abb4600_rws_ws/src/sm_abb4600_unhook' with type 'ros.ament_cmake' and name 'sm_abb4600_unhook'
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extensions ['ignore', 'ignore_ament_install']
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(build) by extension 'ignore'
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(build) ignored
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extensions ['ignore', 'ignore_ament_install']
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(install) by extension 'ignore'
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(install) ignored
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extensions ['ignore', 'ignore_ament_install']
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(log) by extension 'ignore'
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(log) ignored
+[0.173s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extensions ['ignore', 'ignore_ament_install']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extension 'ignore'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extension 'ignore_ament_install'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extensions ['colcon_pkg']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extension 'colcon_pkg'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extensions ['colcon_meta']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extension 'colcon_meta'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extensions ['ros']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extension 'ros'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extensions ['cmake', 'python']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extension 'cmake'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extension 'python'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extensions ['python_setup_py']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws) by extension 'python_setup_py'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/build) by extensions ['ignore', 'ignore_ament_install']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/build) by extension 'ignore'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/build) ignored
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/install) by extensions ['ignore', 'ignore_ament_install']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/install) by extension 'ignore'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/install) ignored
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/log) by extensions ['ignore', 'ignore_ament_install']
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/log) by extension 'ignore'
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/log) ignored
+[0.174s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extensions ['ignore', 'ignore_ament_install']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extension 'ignore'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extension 'ignore_ament_install'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extensions ['colcon_pkg']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extension 'colcon_pkg'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extensions ['colcon_meta']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extension 'colcon_meta'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extensions ['ros']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extension 'ros'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extensions ['cmake', 'python']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extension 'cmake'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extension 'python'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extensions ['python_setup_py']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src) by extension 'python_setup_py'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extensions ['ignore', 'ignore_ament_install']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extension 'ignore'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extension 'ignore_ament_install'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extensions ['colcon_pkg']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extension 'colcon_pkg'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extensions ['colcon_meta']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extension 'colcon_meta'
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extensions ['ros']
+[0.175s] Level 1:colcon.colcon_core.package_identification:_identify(ros2_hook_ws/src/hook_vision) by extension 'ros'
+[0.176s] DEBUG:colcon.colcon_core.package_identification:Package 'ros2_hook_ws/src/hook_vision' with type 'ros.ament_python' and name 'hook_vision'
+[0.176s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[0.176s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[0.176s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[0.176s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[0.176s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[0.193s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb4600_gazebo' in 'abb4600_rws_ws/src/abb4600_gazebo'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb4600_interfaces' in 'abb4600_rws_ws/src/abb4600_interfaces'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_egm_msgs' in 'abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_egm_msgs'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_irb4600_support' in 'abb4600_rws_ws/src/abb_irb4600_support'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_libegm' in 'abb4600_rws_ws/src/abb_libegm/abb_libegm'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_librws' in 'abb4600_rws_ws/src/abb_librws/abb_librws'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_rapid_msgs' in 'abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_msgs'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_resources' in 'abb4600_rws_ws/src/abb_resources'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_robot_msgs' in 'abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_robot_msgs'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_ros2' in 'abb4600_rws_ws/src/abb_ros2'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'hook_vision' in 'ros2_hook_ws/src/hook_vision'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_bringup' in 'abb4600_rws_ws/src/abb_bringup'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_egm_rws_managers' in 'abb4600_rws_ws/src/abb_egm_rws_managers/abb_egm_rws_managers'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_irb4600_60_205_moveit_config' in 'abb4600_rws_ws/src/abb_irb4600_60_205_moveit_config'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_rapid_sm_addin_msgs' in 'abb4600_rws_ws/src/abb_ros2_msgs/abb_ros2_msgs/abb_rapid_sm_addin_msgs'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'sm_abb4600_unhook' in 'abb4600_rws_ws/src/sm_abb4600_unhook'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_hardware_interface' in 'abb4600_rws_ws/src/abb_hardware_interface'
+[0.194s] INFO:colcon.colcon_core.package_selection:Skipping not selected package 'abb_rws_client' in 'abb4600_rws_ws/src/abb_rws_client'
+[0.194s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) check parameters
+[0.194s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) discover
+[0.195s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 1 installed packages in /home/lyr/xm/install
+[0.197s] DEBUG:colcon.colcon_installed_package_information.package_discovery:Found 378 installed packages in /opt/ros/jazzy
+[0.198s] Level 1:colcon.colcon_core.package_discovery:discover_packages(prefix_path) using defaults
+[0.240s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'cmake_args' from command line to 'None'
+[0.241s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'cmake_target' from command line to 'None'
+[0.241s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.241s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'cmake_clean_cache' from command line to 'False'
+[0.241s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'cmake_clean_first' from command line to 'False'
+[0.241s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'cmake_force_configure' from command line to 'False'
+[0.241s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'ament_cmake_args' from command line to 'None'
+[0.241s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'catkin_cmake_args' from command line to 'None'
+[0.241s] Level 5:colcon.colcon_core.verb:set package 'abb4600_rws_cpp' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.241s] DEBUG:colcon.colcon_core.verb:Building package 'abb4600_rws_cpp' with the following arguments: {'ament_cmake_args': None, 'build_base': '/home/lyr/xm/build/abb4600_rws_cpp', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/home/lyr/xm/install/abb4600_rws_cpp', 'merge_install': False, 'path': '/home/lyr/xm/abb4600_rws_ws/src/abb4600_rws_cpp', 'symlink_install': False, 'test_result_base': None}
+[0.241s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[0.243s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[0.243s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/home/lyr/xm/abb4600_rws_ws/src/abb4600_rws_cpp' with build type 'ament_cmake'
+[0.243s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/home/lyr/xm/abb4600_rws_ws/src/abb4600_rws_cpp'
+[0.245s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.245s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.245s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.248s] ERROR:colcon.colcon_cmake.task.cmake.build:Failed to find the following files:
+- /home/lyr/xm/install/abb4600_interfaces/share/abb4600_interfaces/package.sh
+- /home/lyr/xm/install/abb_irb4600_support/share/abb_irb4600_support/package.sh
+- /home/lyr/xm/install/abb_resources/share/abb_resources/package.sh
+- /home/lyr/xm/install/abb_bringup/share/abb_bringup/package.sh
+- /home/lyr/xm/install/abb_irb4600_60_205_moveit_config/share/abb_irb4600_60_205_moveit_config/package.sh
+Check that the following packages have been built:
+- abb4600_interfaces
+- abb_irb4600_support
+- abb_resources
+- abb_bringup
+- abb_irb4600_60_205_moveit_config
+[0.248s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(abb4600_rws_cpp)
+[0.250s] Level 1:colcon.colcon_core.environment:checking '/home/lyr/xm/install/abb4600_rws_cpp' for CMake module files
+[0.250s] Level 1:colcon.colcon_core.environment:checking '/home/lyr/xm/install/abb4600_rws_cpp' for CMake config files
+[0.251s] Level 1:colcon.colcon_core.environment:checking '/home/lyr/xm/install/abb4600_rws_cpp/bin'
+[0.251s] Level 1:colcon.colcon_core.environment:checking '/home/lyr/xm/install/abb4600_rws_cpp/lib/pkgconfig/abb4600_rws_cpp.pc'
+[0.251s] Level 1:colcon.colcon_core.environment:checking '/home/lyr/xm/install/abb4600_rws_cpp/lib/python3.12/site-packages'
+[0.251s] Level 1:colcon.colcon_core.environment:checking '/home/lyr/xm/install/abb4600_rws_cpp/bin'
+[0.251s] INFO:colcon.colcon_core.shell:Creating package script '/home/lyr/xm/install/abb4600_rws_cpp/share/abb4600_rws_cpp/package.ps1'
+[0.252s] INFO:colcon.colcon_core.shell:Creating package descriptor '/home/lyr/xm/install/abb4600_rws_cpp/share/abb4600_rws_cpp/package.dsv'
+[0.252s] INFO:colcon.colcon_core.shell:Creating package script '/home/lyr/xm/install/abb4600_rws_cpp/share/abb4600_rws_cpp/package.sh'
+[0.253s] INFO:colcon.colcon_core.shell:Creating package script '/home/lyr/xm/install/abb4600_rws_cpp/share/abb4600_rws_cpp/package.bash'
+[0.253s] INFO:colcon.colcon_core.shell:Creating package script '/home/lyr/xm/install/abb4600_rws_cpp/share/abb4600_rws_cpp/package.zsh'
+[0.254s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/home/lyr/xm/install/abb4600_rws_cpp/share/colcon-core/packages/abb4600_rws_cpp)
+[0.264s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[0.264s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[0.264s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '1'
+[0.265s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[0.269s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[0.269s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[0.269s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[0.280s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[0.281s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/lyr/xm/install/local_setup.ps1'
+[0.281s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/lyr/xm/install/_local_setup_util_ps1.py'
+[0.282s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/lyr/xm/install/setup.ps1'
+[0.283s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/lyr/xm/install/local_setup.sh'
+[0.283s] INFO:colcon.colcon_core.shell:Creating prefix util module '/home/lyr/xm/install/_local_setup_util_sh.py'
+[0.284s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/lyr/xm/install/setup.sh'
+[0.284s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/lyr/xm/install/local_setup.bash'
+[0.285s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/lyr/xm/install/setup.bash'
+[0.285s] INFO:colcon.colcon_core.shell:Creating prefix script '/home/lyr/xm/install/local_setup.zsh'
+[0.286s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/home/lyr/xm/install/setup.zsh'

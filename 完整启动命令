@@ -1,0 +1,176 @@
+# ==============================================================================
+# 视觉引导自动摘钩系统 — 完整启动命令 (ROS2 Jazzy)
+# ==============================================================================
+# 机械臂端: ~/xm/abb4600_rws_ws   (不要激活 venv)
+# 视觉端:   ~/ros2_hook_ws        (T5 激活 venv)
+# ==============================================================================
+# 重要: 不要 export RMW_IMPLEMENTATION !!
+# ==============================================================================
+
+
+# ============================================================
+# 终端 1：ABB 控制器
+# ============================================================
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+
+ros2 launch abb_bringup abb_control.launch.py \
+  description_package:=abb_irb4600_support \
+  description_file:=irb4600_60_205.xacro \
+  moveit_config_package:=abb_irb4600_60_205_moveit_config \
+  runtime_config_package:=abb_bringup \
+  controllers_file:=abb_controllers.yaml \
+  use_fake_hardware:=false \
+  rws_ip:=192.168.125.1 \
+  initial_joint_controller:=joint_trajectory_controller \
+  start_initial_joint_controller:=true \
+  launch_rviz:=false
+
+
+# ============================================================
+# 终端 2：检查控制器
+# ============================================================
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+
+ros2 control list_controllers
+# 确保 joint_state_broadcaster 和 joint_trajectory_controller 都是 active
+
+
+# ============================================================
+# 终端 3：MoveIt + Action Server
+# ============================================================
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash && source install/setup.bash
+
+ros2 launch abb_bringup abb_moveit.launch.py \
+  robot_xacro_file:=/home/lyr/xm/abb4600_rws_ws/install/abb_irb4600_support/share/abb_irb4600_support/urdf/irb4600_60_205.xacro \
+  support_package:=abb_irb4600_support \
+  moveit_config_package:=abb_irb4600_60_205_moveit_config \
+  moveit_config_file:=abb_irb4600_60_205.srdf.xacro
+
+# 等 MoveIt 启动完（看到 "You can start planning now!"），同终端新 tab：
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+
+ros2 launch abb4600_rws_cpp run_robot_path_action_server.launch.py
+
+
+# ============================================================
+# 终端 4：状态机
+# ============================================================
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+
+ros2 run sm_abb4600_unhook manual_target_unhook_state_machine_node
+
+
+# ============================================================
+# 终端 5：视觉系统 (需要 venv)
+# ============================================================
+cd ~/ros2_hook_ws
+source ~/ros2_hook_ws/.venv_ros2/bin/activate
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+export QT_QPA_PLATFORM=xcb
+
+ros2 launch hook_vision hook_vision.launch.py offset_x:=0.02 offset_y:=0.0 offset_z:=0.08
+# ───── 改 XYZ 偏移就改上面这行，不用重新编译 ─────
+
+
+# ============================================================
+# 终端 6：控制
+# ============================================================
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+
+
+# ╔═══════════════════════════════════════════════════════╗
+# ║            视觉自动模式（推荐）                       ║
+# ╚═══════════════════════════════════════════════════════╝
+
+# ① 等 T5 视觉锁定目标（画面冻结 + 🎯 日志）
+
+# 复位
+ros2 topic pub -1 /abb4600_unhook/reset std_msgs/msg/Empty "{}"
+
+# 启动任务 (IDLE → WAIT_OPERATOR_CONFIRM)
+ros2 topic pub -1 /abb4600_unhook/start std_msgs/msg/Empty "{}"
+
+# 确认执行 (视觉自动发目标 → IK → 移动到车钩)
+ros2 topic pub -1 /abb4600_unhook/confirm_start std_msgs/msg/Empty "{}"
+
+# 等机械臂停稳后，执行摘钩轨迹 (12段 guiji2: p710→p630→...→p590)
+ros2 topic pub -1 /abb4600_unhook/start_guiji2_tail std_msgs/msg/Empty "{}"
+
+# 确认摘钩成功 (WAIT_MANUAL_VERIFY → WAIT_RETURN_HOME)
+ros2 topic pub -1 /abb4600_unhook/unhook_success std_msgs/msg/Empty "{}"
+
+# 结束 (WAIT_RETURN_HOME → DONE)
+ros2 topic pub -1 /abb4600_unhook/skip_return_home std_msgs/msg/Empty "{}"
+
+
+# ╔═══════════════════════════════════════════════════════╗
+# ║         手动模式（跳过视觉，直接发坐标）             ║
+# ╚═══════════════════════════════════════════════════════╝
+
+# ros2 topic pub -1 /abb4600_unhook/reset std_msgs/msg/Empty "{}"
+# ros2 topic pub -1 /abb4600_unhook/start std_msgs/msg/Empty "{}"
+# ros2 topic pub -1 /abb4600_unhook/confirm_start std_msgs/msg/Empty "{}"
+#
+# ros2 topic pub -1 /abb4600_unhook/manual_target geometry_msgs/msg/PointStamped \
+#   "{header: {frame_id: 'base_link'}, point: {x: 1.586, y: 1.055, z: 1.120}}"
+# # ↑ 坐标已经含偏移 x+8cm y-9cm z+8cm
+#
+# ros2 topic pub -1 /abb4600_unhook/start_guiji2_tail std_msgs/msg/Empty "{}"
+# ros2 topic pub -1 /abb4600_unhook/unhook_success std_msgs/msg/Empty "{}"
+# ros2 topic pub -1 /abb4600_unhook/skip_return_home std_msgs/msg/Empty "{}"
+
+
+# ╔═══════════════════════════════════════════════════════╗
+# ║                    回 p10 安全点                     ║
+# ╚═══════════════════════════════════════════════════════╝
+
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash && source install/setup.bash
+unset RMW_IMPLEMENTATION
+
+ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory \
+  control_msgs/action/FollowJointTrajectory \
+  "{trajectory: {joint_names: ['joint_1','joint_2','joint_3','joint_4','joint_5','joint_6'], points: [{positions: [-1.5099, -0.4859, 1.3083, -4.7270, 1.5850, 4.1191], velocities: [0,0,0,0,0,0], time_from_start: {sec: 30, nanosec: 0}}]}}"
+
+
+# ╔═══════════════════════════════════════════════════════╗
+# ║                    紧急操作                          ║
+# ╚═══════════════════════════════════════════════════════╝
+
+# 取消: ros2 topic pub -1 /abb4600_unhook/cancel std_msgs/msg/Empty "{}"
+# 复位: ros2 topic pub -1 /abb4600_unhook/reset std_msgs/msg/Empty "{}"
+
+
+# ╔═══════════════════════════════════════════════════════╗
+# ║                   可调参数                           ║
+# ╚═══════════════════════════════════════════════════════╝
+
+# XYZ 偏移: T5 命令行 offset_x/offset_y/offset_z
+# 速度: manual_target_unhook_state_machine_node.cpp 第255行 velocity_scale
+# 老锚点: run_robot_path_action_server.cpp runGuiji2Tail 里 old_anchor_x/y/z
+
+
+# 机械臂端 (abb4600_rws_ws)
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+colcon build
+
+# 视觉端 (ros2_hook_ws)
+cd ~/ros2_hook_ws
+source ~/ros2_hook_ws/.venv_ros2/bin/activate
+source /opt/ros/jazzy/setup.bash
+source install/setup.bash
+colcon build

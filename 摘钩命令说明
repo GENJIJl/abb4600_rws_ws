@@ -1,0 +1,99 @@
+# 摘钩系统全部命令
+
+## 完整流程（视觉自动模式）
+
+### 步骤1：移动到车钩
+ros2 topic pub -1 /abb4600_unhook/reset std_msgs/msg/Empty "{}"
+# 复位状态机到 IDLE（如果之前出错或状态不对）
+
+ros2 topic pub -1 /abb4600_unhook/start std_msgs/msg/Empty "{}"
+# 启动任务：IDLE → WAIT_OPERATOR_CONFIRM
+
+ros2 topic pub -1 /abb4600_unhook/confirm_start std_msgs/msg/Empty "{}"
+# 确认执行：WAIT_OPERATOR_CONFIRM → WAIT_MANUAL_TARGET
+# 此时视觉自动发送目标坐标（含 x+8 y-9 z+8 偏移）
+# 状态机自动: WAIT_MANUAL_TARGET → MOVING_TO_TARGET → WAIT_MANUAL_VERIFY
+# 机械臂执行: IK 求解 → 生成轨迹 → 移动到车钩位置
+
+### 步骤2：执行摘钩
+ros2 topic pub -1 /abb4600_unhook/start_guiji2_tail std_msgs/msg/Empty "{}"
+# 执行摘钩轨迹：WAIT_MANUAL_VERIFY → EXECUTING_PRESET_UNHOOK_PATH
+# 机械臂先上抬 80mm，再后退 120mm，完成后回到 WAIT_MANUAL_VERIFY
+
+### 步骤3：确认结果
+ros2 topic pub -1 /abb4600_unhook/unhook_success std_msgs/msg/Empty "{}"
+# 确认摘钩成功：WAIT_MANUAL_VERIFY → WAIT_RETURN_HOME
+
+ros2 topic pub -1 /abb4600_unhook/skip_return_home std_msgs/msg/Empty "{}"
+# 跳过回安全点，直接结束：WAIT_RETURN_HOME → DONE
+
+
+## 异常处理
+
+ros2 topic pub -1 /abb4600_unhook/unhook_failed std_msgs/msg/Empty "{}"
+# 摘钩失败，回退到 WAIT_MANUAL_TARGET 重新接收目标再试
+# 在 WAIT_MANUAL_VERIFY 状态下有效
+
+ros2 topic pub -1 /abb4600_unhook/cancel std_msgs/msg/Empty "{}"
+# 任意状态下紧急取消，进入 ERROR
+
+ros2 topic pub -1 /abb4600_unhook/reset std_msgs/msg/Empty "{}"
+# 任意状态下复位到 IDLE
+
+
+## 手动模式（不用视觉，直接发坐标）
+
+ros2 topic pub -1 /abb4600_unhook/manual_target geometry_msgs/msg/PointStamped \
+  "{header: {frame_id: 'base_link'}, point: {x: 1.586, y: 1.055, z: 1.120}}"
+# 手动指定车钩目标坐标（单位：米，需要含偏移量 x+8 y-9 z+8）
+# 只在 WAIT_MANUAL_TARGET 状态下有效
+
+
+## 暂停 / 恢复
+
+ros2 topic pub -1 /abb4600_unhook/pause std_msgs/msg/Empty "{}"
+# 暂停机械臂运动（轨迹执行中有效）
+
+ros2 topic pub -1 /abb4600_unhook/resume std_msgs/msg/Empty "{}"
+# 恢复暂停的机械臂运动
+
+
+## 回 p10 安全点（直接控制关节）
+
+cd ~/xm/abb4600_rws_ws
+source /opt/ros/jazzy/setup.bash && source install/setup.bash
+unset RMW_IMPLEMENTATION
+
+ros2 action send_goal /joint_trajectory_controller/follow_joint_trajectory \
+  control_msgs/action/FollowJointTrajectory \
+  "{trajectory: {joint_names: ['joint_1','joint_2','joint_3','joint_4','joint_5','joint_6'], points: [{positions: [-1.5099, -0.4859, 1.3083, -4.7270, 1.5850, 4.1191], velocities: [0,0,0,0,0,0], time_from_start: {sec: 30, nanosec: 0}}]}}"
+# 30 秒内从当前位置移动到 p10 关节构型，绕过状态机直接控制
+
+
+## 状态机状态流转图
+
+IDLE
+  │ start
+  ▼
+WAIT_OPERATOR_CONFIRM  ← 等待 confirm_start
+  │ confirm_start
+  ▼
+WAIT_MANUAL_TARGET     ← 等待 visual/manual 发目标坐标
+  │ 收到目标
+  ▼
+MOVING_TO_TARGET       ← IK → 轨迹 → 移动到车钩
+  │ 完成
+  ▼
+WAIT_MANUAL_VERIFY     ← 等待 start_guiji2_tail 或 unhook_success/failed
+  │ start_guiji2_tail
+  ▼
+EXECUTING_PRESET_UNHOOK_PATH  ← 上抬 80mm → 后退 120mm
+  │ 完成
+  ▼
+WAIT_MANUAL_VERIFY     ← 等待 unhook_success/failed 确认
+  │ unhook_success
+  ▼
+WAIT_RETURN_HOME       ← 等待 return_home/skip_return_home
+  │ skip_return_home
+  ▼
+DONE
