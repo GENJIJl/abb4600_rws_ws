@@ -10,7 +10,7 @@
 **/__pycache__/
 *.pyc
 
-# temp files
+# temporary files
 *.bak
 *.bak_*
 *~
